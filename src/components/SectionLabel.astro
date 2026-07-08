@@ -1,0 +1,18 @@
+---
+interface Props { num: string; title: string }
+const { num, title } = Astro.props;
+---
+<div class="band-label">
+  <span class="hud">SEC.{num}</span>
+  <h2 class="display">{title}</h2>
+  <span class="rule" aria-hidden="true"></span>
+</div>
+
+<style>
+  .band-label { display: flex; align-items: baseline; gap: 0.9rem; margin: 0 0 1.2rem; }
+  h2 { font-size: 1.4rem; margin: 0; }
+  .rule {
+    flex: 1; height: 2px; opacity: 0.4;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 14px, transparent 14px 22px);
+  }
+</style>

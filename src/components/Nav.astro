@@ -1,0 +1,30 @@
+---
+import { SITE } from '../site.config';
+import ThemeToggle from './ThemeToggle.astro';
+const current = Astro.url.pathname;
+---
+<nav>
+  <a class="wordmark mono" href="/">{SITE.wordmark}</a>
+  <div class="links">
+    {SITE.nav.map((item) => (
+      <a href={item.href} aria-current={current.startsWith(item.href) ? 'page' : undefined}>{item.label}</a>
+    ))}
+    <ThemeToggle />
+  </div>
+</nav>
+
+<style>
+  nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 1rem 1.75rem; border-bottom: 3px solid var(--accent);
+  }
+  .wordmark { font-weight: 700; letter-spacing: 0.12em; text-decoration: none; color: var(--accent); font-size: 1rem; }
+  .links { display: flex; align-items: center; gap: 1.4rem; }
+  .links a {
+    color: var(--text); text-decoration: none; font-size: 0.8rem;
+    text-transform: uppercase; letter-spacing: 0.14em;
+    border-bottom: 2px solid transparent; padding-bottom: 2px;
+    transition: border-color 0.2s ease;
+  }
+  .links a:hover, .links a[aria-current='page'] { border-color: var(--accent); }
+</style>

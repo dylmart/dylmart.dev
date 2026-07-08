@@ -1,0 +1,42 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+---
+<Layout title="About — dylmart_">
+  <section class="band">
+    <SectionLabel num="05" title="About" />
+    <div class="cols">
+      <div class="reveal">
+        <p class="hud">// THE DEV SIDE</p>
+        <p>
+          I'm Dylan — a computer science student at Cal Poly, San Luis Obispo. I like building
+          backends that don't fall over (FastAPI, PostgreSQL), turn-based games in Godot, and
+          physics simulations that run right in your browser. Off the clock I run a Linux
+          homelab that has taught me more about networking, of necessity, than any class.
+        </p>
+        <p>
+          Before Cal Poly I spent three years tutoring physics, math, and CS at Allan Hancock
+          College, which is where the physics sims on this site were born.
+        </p>
+      </div>
+      <div class="reveal">
+        <p class="hud">// THE CAMERA SIDE</p>
+        <p>
+          I shoot Canon, mostly around the central coast — landscapes, tidepools, the
+          occasional launch out of Vandenberg. The gallery is the curated cut; the blog gets
+          the shoot notes.
+        </p>
+        <p>
+          Find me on <a href="https://github.com/dylmart">GitHub</a> or
+          <a href="https://www.linkedin.com/in/dylan-martin-a9830b370">LinkedIn</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .band { padding: 2.2rem 1.75rem; max-width: 60rem; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
+  .hud { margin-bottom: 0.4rem; }
+</style>
