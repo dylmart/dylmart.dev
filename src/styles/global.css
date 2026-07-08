@@ -1,0 +1,49 @@
+/* ---------- worm palette tokens (spec §5) ---------- */
+:root {
+  --bg: #f0ece3; --bg-2: #f0ece3; --surface: #faf7f0;
+  --text: #17171e; --text-dim: #5c584e;
+  --accent: #e03c31; --accent-bright: #c2281e; --neutral: #9a958a;
+}
+:root[data-theme='dark'] {
+  --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
+  --text: #f0ece3; --text-dim: #9a958a;
+  --accent: #e03c31; --accent-bright: #ff5a3c;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+body {
+  margin: 0; min-height: 100vh;
+  background: linear-gradient(180deg, var(--bg), var(--bg-2));
+  color: var(--text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  line-height: 1.6;
+}
+a { color: var(--accent); }
+a:hover { color: var(--accent-bright); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---------- type helpers ---------- */
+.display { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; line-height: 0.95; }
+.mono { font-family: 'Space Mono', monospace; }
+.hud {
+  font-family: 'Space Mono', monospace; font-size: 0.7rem;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-dim);
+}
+
+/* ---------- grain (hero/section art only, spec §5) ---------- */
+.grain::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  opacity: 0.3; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- scroll reveals (driven by src/scripts/reveal.ts) ---------- */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  *, *::before, *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
+}
