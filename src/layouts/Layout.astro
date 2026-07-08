@@ -1,0 +1,37 @@
+---
+import '@fontsource/archivo-black';
+import '@fontsource/space-grotesk/400.css';
+import '@fontsource/space-grotesk/500.css';
+import '@fontsource/space-grotesk/700.css';
+import '@fontsource/space-mono/400.css';
+import '@fontsource/space-mono/700.css';
+import '../styles/global.css';
+import { ClientRouter } from 'astro:transitions';
+import { SITE } from '../site.config';
+
+interface Props { title: string; description?: string }
+const { title, description = SITE.description } = Astro.props;
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const stored = localStorage.getItem('theme');
+        const theme = stored ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme;
+        document.addEventListener('astro:after-swap', () => {
+          document.documentElement.dataset.theme =
+            localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        });
+      })();
+    </script>
+    <ClientRouter />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

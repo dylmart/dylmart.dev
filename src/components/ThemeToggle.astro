@@ -1,0 +1,26 @@
+<button id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+  <span class="sun" aria-hidden="true">☀</span><span class="moon" aria-hidden="true">☾</span>
+</button>
+
+<style>
+  button {
+    background: none; border: 1.5px solid var(--neutral); border-radius: 999px;
+    color: var(--text); cursor: pointer; font-size: 0.9rem;
+    width: 2rem; height: 2rem; line-height: 1;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  :global([data-theme='dark']) .sun { display: none; }
+  :global(:root:not([data-theme='dark'])) .moon { display: none; }
+</style>
+
+<script>
+  function wire() {
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('theme', next);
+    });
+  }
+  wire();
+  document.addEventListener('astro:after-swap', wire);
+</script>
