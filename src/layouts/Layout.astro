@@ -27,6 +27,7 @@ const { title, description = SITE.description } = Astro.props;
         const theme = stored ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
         document.documentElement.dataset.theme = theme;
         document.addEventListener('astro:after-swap', () => {
+          document.documentElement.classList.add('js');
           document.documentElement.dataset.theme =
             localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
         });

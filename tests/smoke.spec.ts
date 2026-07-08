@@ -78,6 +78,7 @@ test.describe('routes', () => {
     await page.goto('/');
     await page.locator('nav .links a[href="/about"]').click();
     await expect(page).toHaveURL(/\/about/);
+    await expect(page.locator('html')).toHaveClass(/js/);
     const html = page.locator('html');
     const before = await html.getAttribute('data-theme');
     await page.getByRole('button', { name: 'Toggle theme' }).click();
