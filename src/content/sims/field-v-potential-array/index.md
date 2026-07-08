@@ -1,5 +1,5 @@
 ---
-title: "Field VPotential Array"
+title: "Field V Potential Array"
 summary: "Physics simulation from Physics163."
 publish: true
 render: glowscript

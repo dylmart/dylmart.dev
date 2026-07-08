@@ -1,5 +1,5 @@
 ---
-title: "Particle In ABottle"
+title: "Particle In A Bottle"
 summary: "Physics simulation from Physics163."
 publish: true
 render: glowscript

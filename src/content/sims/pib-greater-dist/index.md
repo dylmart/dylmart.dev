@@ -1,5 +1,5 @@
 ---
-title: "PIBGreater Dist"
+title: "PIB Greater Dist"
 summary: "Physics simulation from Physics163."
 publish: true
 render: glowscript

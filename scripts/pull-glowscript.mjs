@@ -9,6 +9,24 @@ const API = 'https://www.glowscript.org/api/user/newproph';
 const OUT = 'src/content/sims';
 const DRY = process.argv.includes('--dry-run');
 
+// Fetch with retry logic and error handling
+async function getJson(url, retries = 1) {
+  for (let i = 0; ; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText} for ${url}`);
+      return await res.json();
+    } catch (err) {
+      if (i >= retries) throw err;
+      console.warn(`retrying ${url} after: ${err.message}`);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+}
+
+// YAML double-quoted string escaping (via JSON stringify)
+const yamlStr = (s) => JSON.stringify(String(s));
+
 // slug: split camelCase (incl. uppercase runs like PIBGreater, VPotential, ABottle),
 // then kebab-case everything else
 const slugify = (name) =>
@@ -31,6 +49,7 @@ const SORT = new Map([...PUBLISH].map((s, i) => [s, i + 1]));
 
 const titleCase = (name) =>
   name.replace(/[.\-_]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .split(' ').filter(Boolean)
     .map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 
@@ -42,19 +61,16 @@ const PLACEHOLDER_PNG = Buffer.from(
 
 const exists = (p) => access(p).then(() => true, () => false);
 
-const foldersRes = await fetch(`${API}/folder/`);
-const { folders } = await foldersRes.json();
+const { folders } = await getJson(`${API}/folder/`);
 
 let count = 0;
 const seenThisRun = new Map(); // slug -> folder; detects duplicate slugs within one run
 for (const folder of folders) {
-  const progsRes = await fetch(`${API}/folder/${encodeURIComponent(folder)}/program/`);
-  const { programs } = await progsRes.json();
+  const { programs } = await getJson(`${API}/folder/${encodeURIComponent(folder)}/program/`);
   for (const prog of programs) {
     const slug = slugify(prog.name);
     const dir = join(OUT, slug);
-    const progRes = await fetch(`${API}/folder/${encodeURIComponent(folder)}/program/${encodeURIComponent(prog.name)}`);
-    const { source } = await progRes.json();
+    const { source } = await getJson(`${API}/folder/${encodeURIComponent(folder)}/program/${encodeURIComponent(prog.name)}`);
     const versionLine = source.split('\n')[0].trim(); // e.g. "Web VPython 3.2"
     const version = (versionLine.match(/(\d+\.\d+)/) || [, 'unknown'])[1];
 
@@ -64,12 +80,12 @@ for (const folder of folders) {
 
     const front = [
       '---',
-      `title: "${titleCase(prog.name)}"`,
-      `summary: "Physics simulation from ${folder}."`,
+      `title: ${yamlStr(titleCase(prog.name))}`,
+      `summary: ${yamlStr(`Physics simulation from ${folder}.`)}`,
       `publish: ${PUBLISH.has(slug)}`,
       `render: ${CANVAS2D.has(slug) ? 'canvas2d' : 'glowscript'}`,
       `glowscript_version: "${version}"`,
-      `folder_origin: "${folder}"`,
+      `folder_origin: ${yamlStr(folder)}`,
       `sort: ${SORT.get(slug) ?? 99}`,
       '---',
       '',
