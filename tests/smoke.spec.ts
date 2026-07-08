@@ -48,11 +48,30 @@ test.describe('hero', () => {
     await expect(page.locator('.hero .hud')).toContainText('SLO GROUND STATION');
   });
 
+  test('orbit renders behind the planet on top, in front on bottom', async ({ page }) => {
+    await page.goto('/');
+    const s = await page.evaluate(() => {
+      const kids = [...document.querySelector('.art')!.children].map((el) => el.className);
+      const front = document.querySelector('.ring.front')!;
+      return {
+        kids,
+        clip: getComputedStyle(front).clipPath,
+        inert: getComputedStyle(front).pointerEvents,
+      };
+    });
+    // paint order for positioned siblings IS DOM order:
+    expect(s.kids[0], 'full orbit paints first (behind planet)').toContain('ring back');
+    expect(s.kids[1], 'planet covers the back arc').toContain('planet');
+    expect(s.kids[2], 'clipped copy paints last (over planet)').toContain('ring front');
+    expect(s.clip, 'front copy shows only the near half').toContain('inset');
+    expect(s.inert, 'decorative art must not intercept taps').toBe('none');
+  });
+
   test('reduced motion: orbiter animation is effectively off', async ({ browser }) => {
     const ctx = await browser.newContext({ reducedMotion: 'reduce' });
     const page = await ctx.newPage();
     await page.goto('/');
-    const dur = await page.locator('.orbit-spin').evaluate((el) => getComputedStyle(el).animationDuration);
+    const dur = await page.locator('.ring.back .orbit-spin').evaluate((el) => getComputedStyle(el).animationDuration);
     expect(parseFloat(dur)).toBeLessThan(0.01);
     await ctx.close();
   });
