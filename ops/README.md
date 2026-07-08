@@ -2,7 +2,7 @@
 
 One-time setup, run by Dylan (Claude's sudo is read-only):
 
-    sudo mkdir -p /srv/http/dylmart && sudo chown newproph: /srv/http/dylmart
+    sudo mkdir -p /srv/http/dylmart && sudo chown "$USER": /srv/http/dylmart
     sudo cp ops/nginx/dylmart.conf /etc/nginx/conf.d/dylmart.conf
     sudo nginx -t && sudo systemctl reload nginx
 

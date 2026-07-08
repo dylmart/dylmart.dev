@@ -5,3 +5,4 @@ dist/
 docs/superpowers/
 test-results/
 playwright-report/
+privacy-patterns.json

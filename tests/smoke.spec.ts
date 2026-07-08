@@ -1,4 +1,16 @@
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Optional, gitignored file of extra regex-source strings for the privacy
+// sweep below. Lets local runs guard real personal data without committing
+// it to this public repo. Absent in CI/fresh clones — generic checks still run.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const privacyPatternsPath = path.join(__dirname, '..', 'privacy-patterns.json');
+const extraPrivacyPatterns: string[] = fs.existsSync(privacyPatternsPath)
+  ? JSON.parse(fs.readFileSync(privacyPatternsPath, 'utf-8'))
+  : [];
 
 test.describe('theme', () => {
   test('defaults to dark when system prefers dark', async ({ browser }) => {
@@ -6,6 +18,14 @@ test.describe('theme', () => {
     const page = await ctx.newPage();
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await ctx.close();
+  });
+
+  test('defaults to light when system prefers light', async ({ browser }) => {
+    const ctx = await browser.newContext({ colorScheme: 'light' });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await ctx.close();
   });
 
@@ -82,13 +102,15 @@ test.describe('chrome', () => {
   });
 
   test('privacy: no email, phone, or resume leaks anywhere', async ({ page }) => {
-    for (const path of ['/', '/about', '/projects', '/photos', '/blog', '/definitely-not-a-page']) {
-      await page.goto(path);
+    for (const route of ['/', '/about', '/projects', '/photos', '/blog', '/definitely-not-a-page']) {
+      await page.goto(route);
       const html = (await page.content()).toLowerCase();
       expect(html).not.toContain('mailto:');
-      expect(html).not.toContain('protonmail');
-      expect(html).not.toMatch(/805[\s.()-]*717/);
+      expect(html).not.toContain('tel:');
       expect(html).not.toContain('resume');
+      for (const pattern of extraPrivacyPatterns) {
+        expect(html).not.toMatch(new RegExp(pattern, 'i'));
+      }
     }
   });
 });

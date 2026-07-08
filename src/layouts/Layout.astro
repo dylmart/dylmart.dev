@@ -22,6 +22,7 @@ const { title, description = SITE.description } = Astro.props;
     <title>{title}</title>
     <script is:inline>
       (() => {
+        document.documentElement.classList.add('js');
         const stored = localStorage.getItem('theme');
         const theme = stored ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
         document.documentElement.dataset.theme = theme;

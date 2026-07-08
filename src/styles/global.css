@@ -9,6 +9,14 @@
   --text: #f0ece3; --text-dim: #9a958a;
   --accent: #e03c31; --accent-bright: #ff5a3c;
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
+    --text: #f0ece3; --text-dim: #9a958a;
+    --accent: #e03c31; --accent-bright: #ff5a3c;
+    color-scheme: dark;
+  }
+}
 
 /* ---------- base ---------- */
 * { box-sizing: border-box; }
@@ -26,7 +34,7 @@ a:hover { color: var(--accent-bright); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ---------- type helpers ---------- */
-.display { font-family: 'Archivo Black', sans-serif; text-transform: uppercase; line-height: 0.95; }
+.display { font-family: 'Archivo Black', sans-serif; font-weight: 400; text-transform: uppercase; line-height: 0.95; }
 .mono { font-family: 'Space Mono', monospace; }
 .hud {
   font-family: 'Space Mono', monospace; font-size: 0.7rem;
@@ -41,9 +49,10 @@ a:hover { color: var(--accent-bright); }
 }
 
 /* ---------- scroll reveals (driven by src/scripts/reveal.ts) ---------- */
-.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
-.reveal.is-visible { opacity: 1; transform: none; }
+/* Scoped to :root.js so content stays visible with JS disabled/failed (no-JS hardening). */
+:root.js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
+:root.js .reveal.is-visible { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; transform: none; transition: none; }
+  :root.js .reveal { opacity: 1; transform: none; transition: none; }
   *, *::before, *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
 }
