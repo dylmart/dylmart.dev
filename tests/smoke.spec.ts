@@ -21,6 +21,23 @@ test.describe('theme', () => {
   });
 });
 
+test.describe('hero', () => {
+  test('renders name and HUD line', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.hero h1')).toContainText(/Dylan\s*Martin/);
+    await expect(page.locator('.hero .hud')).toContainText('SLO GROUND STATION');
+  });
+
+  test('reduced motion: orbiter animation is effectively off', async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    const dur = await page.locator('.orbiter').evaluate((el) => getComputedStyle(el).animationDuration);
+    expect(parseFloat(dur)).toBeLessThan(0.01);
+    await ctx.close();
+  });
+});
+
 test.describe('chrome', () => {
   test('nav has wordmark and section links', async ({ page }) => {
     await page.goto('/');
