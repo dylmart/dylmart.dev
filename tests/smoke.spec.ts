@@ -52,7 +52,7 @@ test.describe('hero', () => {
     const ctx = await browser.newContext({ reducedMotion: 'reduce' });
     const page = await ctx.newPage();
     await page.goto('/');
-    const dur = await page.locator('.orbiter').evaluate((el) => getComputedStyle(el).animationDuration);
+    const dur = await page.locator('.orbit-spin').evaluate((el) => getComputedStyle(el).animationDuration);
     expect(parseFloat(dur)).toBeLessThan(0.01);
     await ctx.close();
   });
@@ -113,5 +113,56 @@ test.describe('chrome', () => {
         expect(html).not.toMatch(new RegExp(pattern, 'i'));
       }
     }
+  });
+});
+
+test.describe('mobile', () => {
+  const phone = { viewport: { width: 390, height: 844 } };
+
+  test('no horizontal overflow on any route', async ({ browser }) => {
+    const ctx = await browser.newContext(phone);
+    const page = await ctx.newPage();
+    for (const route of ['/', '/about', '/projects', '/photos', '/blog']) {
+      await page.goto(route);
+      const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(scrollWidth, `${route} overflows horizontally`).toBeLessThanOrEqual(clientWidth);
+    }
+    await ctx.close();
+  });
+
+  test('nav links and theme toggle are on screen', async ({ browser }) => {
+    const ctx = await browser.newContext(phone);
+    const page = await ctx.newPage();
+    await page.goto('/');
+    for (const label of ['Projects', 'Photos', 'Blog', 'About']) {
+      const box = await page.locator('nav .links a', { hasText: label }).boundingBox();
+      expect(box, `${label} link not rendered`).not.toBeNull();
+      expect(box!.x + box!.width, `${label} link off screen`).toBeLessThanOrEqual(phone.viewport.width);
+    }
+    const toggle = await page.getByRole('button', { name: 'Toggle theme' }).boundingBox();
+    expect(toggle, 'toggle not rendered').not.toBeNull();
+    expect(toggle!.x + toggle!.width, 'toggle off screen').toBeLessThanOrEqual(phone.viewport.width);
+    await ctx.close();
+  });
+
+  test('hero art pieces stay concentric at phone width', async ({ browser }) => {
+    const ctx = await browser.newContext(phone);
+    const page = await ctx.newPage();
+    await page.goto('/');
+    const centers = await page.evaluate(() => {
+      const center = (sel: string) => {
+        const r = document.querySelector(sel)!.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      };
+      return { planet: center('.planet'), ring: center('.ring'), orbiter: center('.orbiter') };
+    });
+    for (const piece of ['ring', 'orbiter'] as const) {
+      expect(Math.abs(centers[piece].x - centers.planet.x), `${piece} x-center drift`).toBeLessThanOrEqual(8);
+      expect(Math.abs(centers[piece].y - centers.planet.y), `${piece} y-center drift`).toBeLessThanOrEqual(8);
+    }
+    await ctx.close();
   });
 });
