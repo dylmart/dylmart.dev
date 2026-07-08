@@ -8,8 +8,13 @@ import { SITE } from '../site.config';
     )}
   </div>
   <div class="art" aria-hidden="true">
+    <div class="ring back">
+      <div class="orbiter">
+        <div class="orbit-spin"><b></b></div>
+      </div>
+    </div>
     <div class="planet"></div>
-    <div class="ring">
+    <div class="ring front">
       <div class="orbiter">
         <div class="orbit-spin"><b></b></div>
       </div>
@@ -33,6 +38,7 @@ import { SITE } from '../site.config';
   .art {
     position: absolute; right: clamp(0.5rem, 4vw, 4rem); top: clamp(1.5rem, 6vw, 3.5rem);
     width: clamp(180px, 30vw, 330px); aspect-ratio: 1;
+    pointer-events: none;
   }
   .planet {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -40,12 +46,15 @@ import { SITE } from '../site.config';
     background: radial-gradient(circle at 34% 30%, var(--accent-bright), var(--accent) 55%, #8f1d14);
     box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 8%, transparent);
   }
-  /* The ring IS the orbit line: a tilted ellipse the dot travels along. */
+  /* The ring IS the orbit line: a tilted ellipse the dot travels along.
+     Two synced copies give real depth: the full one sits behind the planet,
+     the front one is clipped to the lower (near) half and draws over it. */
   .ring {
     position: absolute; left: 50%; top: 50%; width: 100%; height: 26%;
     transform: translate(-50%, -50%) rotate(-16deg);
     border: 2.5px solid var(--neutral); border-radius: 50%; opacity: 0.55;
   }
+  .ring.front { clip-path: inset(50% 0 0 0); }
   /* Ellipse trick: a full-width square, squashed with scaleY to the ring's
      aspect. A circle traced inside it becomes exactly the ring's ellipse. */
   .orbiter {
