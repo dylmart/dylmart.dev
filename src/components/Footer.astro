@@ -1,0 +1,24 @@
+---
+import { SITE } from '../site.config';
+const year = new Date().getFullYear();
+---
+<footer>
+  <span class="mono">© {year} dylmart · built with Astro, launched from SLO</span>
+  <div>
+    <a href={SITE.socials.github}>GitHub</a>
+    <a href={SITE.socials.linkedin}>LinkedIn</a>
+  </div>
+</footer>
+
+<style>
+  footer {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    flex-wrap: wrap; padding: 1.4rem 1.75rem; margin-top: 4rem;
+    border-top: 3px solid var(--accent); font-size: 0.75rem; color: var(--text-dim);
+  }
+  footer a {
+    color: var(--accent); text-decoration: none; margin-left: 1rem;
+    text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.7rem;
+  }
+  footer a:hover { color: var(--accent-bright); }
+</style>
