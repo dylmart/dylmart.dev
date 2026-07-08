@@ -16,10 +16,11 @@ const current = Astro.url.pathname;
 <style>
   nav {
     display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; row-gap: 0.4rem;
     padding: 1rem 1.75rem; border-bottom: 3px solid var(--accent);
   }
   .wordmark { font-weight: 700; letter-spacing: 0.12em; text-decoration: none; color: var(--accent); font-size: 1rem; }
-  .links { display: flex; align-items: center; gap: 1.4rem; }
+  .links { display: flex; align-items: center; flex-wrap: wrap; gap: 1.4rem; }
   .links a {
     color: var(--text); text-decoration: none; font-size: 0.8rem;
     text-transform: uppercase; letter-spacing: 0.14em;
@@ -27,4 +28,10 @@ const current = Astro.url.pathname;
     transition: border-color 0.2s ease;
   }
   .links a:hover, .links a[aria-current='page'] { border-color: var(--accent); }
+
+  @media (max-width: 560px) {
+    nav { padding: 0.85rem 1rem; }
+    .links { gap: 0.8rem; }
+    .links a { font-size: 0.7rem; letter-spacing: 0.08em; }
+  }
 </style>
