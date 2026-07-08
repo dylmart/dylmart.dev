@@ -38,6 +38,34 @@ test.describe('hero', () => {
   });
 });
 
+test.describe('routes', () => {
+  test('all section routes render with nav', async ({ page }) => {
+    for (const path of ['/about', '/projects', '/photos', '/blog']) {
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(200);
+      await expect(page.locator('nav .wordmark')).toHaveText('dylmart_');
+    }
+  });
+
+  test('404 page is on brand', async ({ page }) => {
+    const res = await page.goto('/definitely-not-a-page');
+    expect(res?.status()).toBe(404);
+    await expect(page.locator('main')).toContainText(/lost in space/i);
+    await expect(page.locator('main a[href="/"]')).toBeVisible();
+  });
+
+  test('theme toggle works after client-side navigation', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('nav .links a[href="/about"]').click();
+    await expect(page).toHaveURL(/\/about/);
+    const html = page.locator('html');
+    const before = await html.getAttribute('data-theme');
+    await page.getByRole('button', { name: 'Toggle theme' }).click();
+    const expected = before === 'dark' ? 'light' : 'dark';
+    await expect(html).toHaveAttribute('data-theme', expected);
+  });
+});
+
 test.describe('chrome', () => {
   test('nav has wordmark and section links', async ({ page }) => {
     await page.goto('/');

@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="404 — dylmart_">
+  <section class="lost">
+    <p class="hud">// TELEMETRY LOST · CODE 404</p>
+    <h1 class="display">Lost in space<span>.</span></h1>
+    <p>This page drifted out of the flight plan.</p>
+    <a href="/">Return to launch site →</a>
+  </section>
+</Layout>
+
+<style>
+  .lost { min-height: 50vh; display: grid; place-content: center; text-align: center; padding: 2rem; }
+  h1 { font-size: clamp(2.4rem, 7vw, 4rem); margin: 0.8rem 0; }
+  h1 span { color: var(--accent); }
+  a { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8rem; text-decoration: none; }
+</style>

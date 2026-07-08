@@ -1,7 +1,22 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import MissionCard from '../components/MissionCard.astro';
 ---
 <Layout title="dylmart_ — Dylan Martin">
   <Hero />
+  <section class="band">
+    <SectionLabel num="01" title="Missions" />
+    <div class="tripcards">
+      <MissionCard href="/projects" title="Projects" blurb="Backends, a tactical RPG, live physics sims, tooling." hue="red" />
+      <MissionCard href="/photos" title="Photos" blurb="Photo projects and a curated gallery, shot on Canon." hue="gray" />
+      <MissionCard href="/blog" title="Blog" blurb="Dev logs, homelab incidents, D&D, life in SLO." hue="paper" />
+    </div>
+  </section>
 </Layout>
+
+<style>
+  .band { padding: 2.2rem 1.75rem; }
+  .tripcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem; }
+</style>

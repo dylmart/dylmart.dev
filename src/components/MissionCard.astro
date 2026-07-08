@@ -1,0 +1,26 @@
+---
+interface Props { href: string; title: string; blurb: string; hue: 'red' | 'gray' | 'paper' }
+const { href, title, blurb, hue } = Astro.props;
+const grads = {
+  red: 'radial-gradient(circle at 35% 35%, var(--accent-bright), var(--accent))',
+  gray: 'radial-gradient(circle at 35% 35%, var(--neutral), var(--text-dim))',
+  paper: 'radial-gradient(circle at 35% 35%, var(--surface), var(--neutral))',
+} as const;
+---
+<a class="tcard reveal" href={href}>
+  <span class="ico" style={`background:${grads[hue]}`} aria-hidden="true"></span>
+  <h3>{title}</h3>
+  <p>{blurb}</p>
+</a>
+
+<style>
+  .tcard {
+    display: block; background: var(--surface); border: 1.5px solid var(--neutral);
+    border-radius: 10px; padding: 1.2rem; text-decoration: none; color: var(--text);
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .tcard:hover { transform: translateY(-4px); border-color: var(--accent); color: var(--text); }
+  .ico { display: block; width: 2.2rem; height: 2.2rem; border-radius: 50%; margin-bottom: 0.8rem; }
+  h3 { margin: 0 0 0.35rem; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  p { margin: 0; font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+</style>
