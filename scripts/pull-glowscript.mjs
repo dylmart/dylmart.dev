@@ -46,6 +46,7 @@ const foldersRes = await fetch(`${API}/folder/`);
 const { folders } = await foldersRes.json();
 
 let count = 0;
+const seenThisRun = new Map(); // slug -> folder; detects duplicate slugs within one run
 for (const folder of folders) {
   const progsRes = await fetch(`${API}/folder/${encodeURIComponent(folder)}/program/`);
   const { programs } = await progsRes.json();
@@ -77,11 +78,16 @@ for (const folder of folders) {
     ].join('\n');
 
     count++;
+    const dupInRun = seenThisRun.has(slug);
+    if (dupInRun) console.warn(`DUPLICATE slug ${slug}: ${seenThisRun.get(slug)} superseded by ${folder}`);
+    seenThisRun.set(slug, folder);
     if (DRY) { console.log(`[dry] ${slug} publish=${PUBLISH.has(slug)} v=${version}`); continue; }
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, 'source.py'), source);
     await writeFile(join(dir, 'thumbnail.png'), shot);
-    if (!(await exists(join(dir, 'index.md')))) await writeFile(join(dir, 'index.md'), front);
+    // Later duplicate within the same run fully wins (overwrites index.md);
+    // across separate runs the exists-check still protects hand-edited writeups.
+    if (dupInRun || !(await exists(join(dir, 'index.md')))) await writeFile(join(dir, 'index.md'), front);
     console.log(`${slug} (${folder}) publish=${PUBLISH.has(slug)}`);
   }
 }
