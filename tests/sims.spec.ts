@@ -62,3 +62,40 @@ test.describe('sims section', () => {
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
+
+test.describe('canvas2d sims (registry not yet populated)', () => {
+  const canvas2dSlugs = ['pi-collisions', '2d-motion', 'rope-oscillations-sim', 'gravitation-2point', 'yoyo-lab3'];
+
+  for (const slug of canvas2dSlugs) {
+    test(`${slug} degrades to a clear unavailable message, no dead canvas or controls`, async ({ page }) => {
+      await page.goto(`/projects/sims/${slug}/`);
+      await expect(page.locator('.sim-unavailable')).toBeVisible();
+      await expect(page.locator('.sim-unavailable')).toContainText(/not yet available/i);
+      await expect(page.locator('.sim2d canvas')).toHaveCount(0);
+      await expect(page.locator('.sim-controls')).toHaveCount(0);
+    });
+  }
+
+  test('soft-navigating away from an un-ported canvas2d page still works normally', async ({ page }) => {
+    await page.goto('/projects/sims/pi-collisions/');
+    await expect(page.locator('.sim-unavailable')).toBeVisible();
+
+    await page.evaluate(() => {
+      (window as any).__softNavMarker = 1;
+    });
+
+    await page.getByRole('link', { name: /all simulations/i }).click();
+    await expect(page).toHaveURL(/\/projects\/sims\/?$/);
+    await expect(page.locator('.sim-card')).toHaveCount(13);
+    expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
+  });
+
+  test('no console errors while landing on an un-ported canvas2d page', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+    await page.goto('/projects/sims/2d-motion/');
+    await expect(page.locator('.sim-unavailable')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});

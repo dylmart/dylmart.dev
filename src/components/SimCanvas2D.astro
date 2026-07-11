@@ -1,0 +1,108 @@
+---
+interface Props { slug: string; hasPlot: boolean }
+const { slug, hasPlot } = Astro.props;
+---
+<div class="sim2d" data-slug={slug}>
+  <canvas class="sim-main" width="640" height="400"></canvas>
+  {hasPlot && <canvas class="sim-plot" width="640" height="180"></canvas>}
+  <div class="sim-controls mono">
+    <button data-act="toggle" type="button">▶ Play</button>
+    <button data-act="reset" type="button">Reset</button>
+    <label>speed
+      <select data-act="speed">
+        <option value="0.5">×0.5</option>
+        <option value="1" selected>×1</option>
+        <option value="2">×2</option>
+      </select>
+    </label>
+    <span class="sim-params"></span>
+  </div>
+  <p class="sim-unavailable hud" hidden>// SIMULATION PORT NOT YET AVAILABLE</p>
+</div>
+
+<style>
+  .sim2d { border: 1.5px solid var(--neutral); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  canvas { display: block; width: 100%; height: auto; background: var(--sim-canvas-bg); }
+  .sim-plot { border-top: 1.5px dashed var(--neutral); }
+  .sim-controls { display: flex; align-items: center; gap: 0.8rem; padding: 0.7rem 0.9rem; font-size: 0.75rem; border-top: 1.5px solid var(--neutral); flex-wrap: wrap; }
+  .sim-controls button, .sim-controls select {
+    background: none; border: 1.5px solid var(--neutral); border-radius: 4px; color: var(--text);
+    font: inherit; padding: 0.35rem 0.8rem; cursor: pointer;
+  }
+  .sim-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .sim-unavailable { padding: 0.9rem; margin: 0; }
+</style>
+
+<script>
+  import { registry } from '../sims/registry';
+  import { mountSim } from '../sims/host';
+
+  async function boot() {
+    const root = document.querySelector<HTMLElement>('.sim2d[data-slug]');
+    if (!root || root.dataset.booted) return;
+    root.dataset.booted = '1';
+    const load = registry[root.dataset.slug!];
+
+    // Until the corresponding port task lands, a canvas2d slug has no
+    // registry entry. Degrade to a clear HUD message instead of leaving a
+    // dead canvas + inert controls behind.
+    function showUnavailable() {
+      root!.querySelector<HTMLElement>('.sim-main')!.remove();
+      root!.querySelector<HTMLElement>('.sim-plot')?.remove();
+      root!.querySelector<HTMLElement>('.sim-controls')!.remove();
+      root!.querySelector<HTMLElement>('.sim-unavailable')!.hidden = false;
+    }
+
+    if (!load) { showUnavailable(); return; }
+
+    let mod;
+    try {
+      mod = await load();
+    } catch (e) {
+      console.error(e);
+      showUnavailable();
+      return;
+    }
+
+    const params: Record<string, number> = {};
+    for (const p of mod.params ?? []) params[p.key] = p.initial;
+
+    const toggle = root.querySelector<HTMLButtonElement>('[data-act="toggle"]')!;
+    const build = () => mountSim(
+      mod.default(params),
+      root.querySelector<HTMLCanvasElement>('.sim-main')!,
+      root.querySelector<HTMLCanvasElement>('.sim-plot'),
+      (running) => { toggle.textContent = running ? '❚❚ Pause' : '▶ Play'; },
+    );
+    let h = build();
+
+    toggle.addEventListener('click', () =>
+      toggle.textContent!.includes('Pause') ? h.pause() : h.play());
+    root.querySelector('[data-act="reset"]')!.addEventListener('click', () => h.reset());
+    root.querySelector<HTMLSelectElement>('[data-act="speed"]')!
+      .addEventListener('change', (e) => h.setSpeed(Number((e.target as HTMLSelectElement).value)));
+
+    // param selects (e.g. PiCollisions mass ratio)
+    const holder = root.querySelector<HTMLElement>('.sim-params')!;
+    for (const p of mod.params ?? []) {
+      const label = document.createElement('label');
+      label.append(`${p.label} `);
+      const sel = document.createElement('select');
+      for (const v of p.values) {
+        const o = document.createElement('option');
+        o.value = String(v); o.textContent = String(v);
+        if (v === p.initial) o.selected = true;
+        sel.append(o);
+      }
+      sel.addEventListener('change', () => {
+        params[p.key] = Number(sel.value);
+        h.pause(); h = build();
+      });
+      label.append(sel); holder.append(label);
+    }
+
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) h.play();
+  }
+  boot();
+  document.addEventListener('astro:after-swap', boot);
+</script>

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import Layout from '../../../layouts/Layout.astro';
 import SectionLabel from '../../../components/SectionLabel.astro';
 import SimGlowScript from '../../../components/SimGlowScript.astro';
+import SimCanvas2D from '../../../components/SimCanvas2D.astro';
 import { Code } from 'astro:components';
 
 export async function getStaticPaths() {
@@ -24,7 +25,9 @@ const source = await readFile(`src/content/sims/${sim.id}/source.py`, 'utf8');
     {sim.data.render === 'glowscript' && (
       <SimGlowScript slug={sim.id} thumbSrc={`/sim-thumbs/${sim.id}.png`} title={sim.data.title} />
     )}
-    {sim.data.render === 'canvas2d' && <p class="hud">// CANVAS2D PORT LANDING IN A LATER TASK</p>}
+    {sim.data.render === 'canvas2d' && (
+      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', '2d-motion', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
+    )}
 
     <details class="sim-source">
       <summary class="hud">// VIEW ORIGINAL GLOWSCRIPT SOURCE</summary>
