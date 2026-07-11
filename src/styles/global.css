@@ -3,6 +3,10 @@
   --bg: #f0ece3; --bg-2: #f0ece3; --surface: #faf7f0;
   --text: #17171e; --text-dim: #5c584e;
   --accent: #e03c31; --accent-bright: #c2281e; --neutral: #9a958a;
+  /* Fixed GlowScript render background — matches the sim runtime's own scene
+     background (not a theme color), so it's defined once here and shared by
+     both themes rather than overridden in the dark-mode block below. */
+  --sim-canvas-bg: #000;
 }
 :root[data-theme='dark'] {
   --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;

@@ -32,7 +32,7 @@ const sims = (await getCollection('sims', (e) => e.data.publish))
     transition: transform 0.25s ease, border-color 0.25s ease;
   }
   .sim-card:hover { transform: translateY(-4px); border-color: var(--accent); }
-  .sim-card img { width: 100%; height: auto; border-radius: 6px; background: #000; }
+  .sim-card img { width: 100%; height: auto; border-radius: 6px; background: var(--sim-canvas-bg); }
   .sim-card h3 { margin: 0.6rem 0 0.2rem; font-size: 0.95rem; }
   .sim-card p { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--text-dim); }
 </style>

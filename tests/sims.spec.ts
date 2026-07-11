@@ -30,4 +30,35 @@ test.describe('sims section', () => {
     await page.getByRole('link', { name: /physics simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims/);
   });
+
+  test('booting a sim forces a full reload on next navigation (no orphaned render loop)', async ({ page }) => {
+    await page.goto('/projects/sims/particle-in-a-bottle/');
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+
+    // Mark this `window` instance. A soft (client-side) navigation keeps
+    // `window` alive, so the marker would survive; a full page load creates
+    // a fresh `window` and wipes it.
+    await page.evaluate(() => {
+      (window as any).__softNavMarker = 1;
+    });
+
+    await page.getByRole('link', { name: /all simulations/i }).click();
+    await expect(page).toHaveURL(/\/projects\/sims\/?$/);
+    await expect(page.locator('.sim-card')).toHaveCount(13); // index actually loaded
+    expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
+  });
+
+  test('a sim page where Run was never clicked still soft-navigates normally', async ({ page }) => {
+    await page.goto('/projects/sims/particle-in-a-bottle/');
+
+    await page.evaluate(() => {
+      (window as any).__softNavMarker = 1;
+    });
+
+    await page.getByRole('link', { name: /all simulations/i }).click();
+    await expect(page).toHaveURL(/\/projects\/sims\/?$/);
+    await expect(page.locator('.sim-card')).toHaveCount(13);
+    expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
+  });
 });

@@ -19,7 +19,7 @@ const { slug, thumbSrc, title } = Astro.props;
   }
   .sim-run:hover { background: var(--accent-bright); }
   .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
-  :global(.sim-stage .glowscript) { background: #000; }
+  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); }
 </style>
 
 <script>
@@ -34,6 +34,40 @@ const { slug, thumbSrc, title } = Astro.props;
     const l = document.createElement('link');
     l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
   };
+
+  // Compiled sims run an unbounded `while(true){ await rate(...) }` render
+  // loop. Astro's ClientRouter (view transitions) swaps the DOM on soft nav
+  // but `window` persists, so a booted sim's loop keeps running forever on a
+  // detached canvas — CPU/battery drain, and repeated visits can exhaust the
+  // browser's WebGL context limit. There is no teardown path for the
+  // GlowScript runtime, so once a sim has booted we force the *next*
+  // navigation away from this page to be a real full page load instead of a
+  // soft swap, which tears down `window` (and the loop with it).
+  //
+  // Verified against the installed astro@7.0.6 source
+  // (node_modules/astro/dist/transitions/events.js +
+  // node_modules/astro/dist/transitions/router.js):
+  //   - `astro:before-preparation` dispatches a cancelable `Event`
+  //     (`TransitionBeforePreparationEvent`, constructed with
+  //     `{ cancelable: true }`), so `e.preventDefault()` is honored.
+  //   - `e.to` is a real `URL` (built via `new URL(href, location.href)`
+  //     before dispatch), so `e.to.href` is safe to read.
+  //   - router.js's `transition()` already does
+  //     `if (prepEvent.defaultPrevented) { ...; location.href = to.href; }`
+  //     as its own fallback — so preventDefault() alone is enough to force a
+  //     real navigation. We still set `location.href` explicitly ourselves
+  //     (belt-and-suspenders / matches the documented fix pattern); it's a
+  //     same-value assignment so it's harmless if Astro's own fallback also
+  //     runs.
+  let fullReloadArmed = false;
+  function armFullReloadOnNextNavigation() {
+    if (fullReloadArmed) return;
+    fullReloadArmed = true;
+    document.addEventListener('astro:before-preparation', (e) => {
+      e.preventDefault();
+      location.href = e.to.href;
+    });
+  }
 
   function wire() {
     const stage = document.querySelector<HTMLElement>('.sim-stage[data-slug]');
@@ -61,6 +95,7 @@ const { slug, thumbSrc, title } = Astro.props;
         holder.id = 'glowscript'; holder.className = 'glowscript';
         stage.appendChild(holder);
         await loadScript(`/sim-code/${stage.dataset.slug}.js`);
+        armFullReloadOnNextNavigation();
       } catch (e) {
         stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;
         console.error(e);
