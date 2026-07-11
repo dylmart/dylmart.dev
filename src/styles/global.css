@@ -7,6 +7,22 @@
      background (not a theme color), so it's defined once here and shared by
      both themes rather than overridden in the dark-mode block below. */
   --sim-canvas-bg: #000;
+
+  /* Shiki `css-variables` theme tokens (used by <Code theme="css-variables">
+     on the sim detail pages' "view original source" blocks). Mapped only to
+     the palette tokens above, so they flip with the theme automatically —
+     no new colors introduced here. */
+  --astro-code-foreground: var(--text);
+  --astro-code-background: var(--surface);
+  --astro-code-token-comment: var(--text-dim);
+  --astro-code-token-string: var(--text);
+  --astro-code-token-string-expression: var(--text);
+  --astro-code-token-constant: var(--neutral);
+  --astro-code-token-keyword: var(--accent);
+  --astro-code-token-parameter: var(--text-dim);
+  --astro-code-token-function: var(--accent-bright);
+  --astro-code-token-punctuation: var(--neutral);
+  --astro-code-token-link: var(--accent);
 }
 :root[data-theme='dark'] {
   --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;

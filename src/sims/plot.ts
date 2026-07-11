@@ -1,5 +1,19 @@
 export interface PlotPoint { x: number; y: number }
 
+/** Max points retained in a plot's rolling buffer (matches the sims' own drain-queue caps). */
+export const PLOT_BUFFER_CAP = 4000;
+
+/**
+ * Appends `additions` to `buf` in place, then drops the oldest entries beyond `cap`.
+ * Pure buffer-management logic pulled out of createPlot so it's testable without a
+ * canvas/DOM (vitest has no jsdom here).
+ */
+export function appendCapped<T>(buf: T[], additions: readonly T[], cap: number): T[] {
+  for (const a of additions) buf.push(a);
+  if (buf.length > cap) buf.splice(0, buf.length - cap);
+  return buf;
+}
+
 export function scaleToExtent(points: PlotPoint[], w: number, h: number, pad: number) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) {
@@ -41,7 +55,13 @@ export function createPlot(canvas: HTMLCanvasElement, opts: { title: string }) {
     ctx.stroke();
   }
   return {
-    push(p: PlotPoint) { pts.push(p); redraw(); },
+    push(p: PlotPoint) { appendCapped(pts, [p], PLOT_BUFFER_CAP); redraw(); },
+    /** Append a whole drained batch and redraw once (avoids O(n) redraws per frame). */
+    pushAll(points: PlotPoint[]) {
+      if (points.length === 0) return;
+      appendCapped(pts, points, PLOT_BUFFER_CAP);
+      redraw();
+    },
     reset() { pts.length = 0; redraw(); },
   };
 }

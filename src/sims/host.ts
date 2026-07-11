@@ -39,7 +39,7 @@ export function mountSim(
     stepper.tick(Math.min((t - last) / 1000, 0.25));
     last = t;
     sim.draw(ctx, view);
-    if (plot && sim.drainPlot) for (const p of sim.drainPlot() ?? []) plot.push(p);
+    if (plot && sim.drainPlot) plot.pushAll(sim.drainPlot() ?? []);
     if (sim.done?.()) { running = false; onStateChange(false); return; }
     raf = requestAnimationFrame(frame);
   }
