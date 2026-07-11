@@ -1,0 +1,72 @@
+---
+interface Props { slug: string; thumbSrc: string; title: string }
+const { slug, thumbSrc, title } = Astro.props;
+---
+<div class="sim-stage" data-slug={slug}>
+  <img class="sim-thumb" src={thumbSrc} alt={`${title} preview`} width="640" height="400" />
+  <button class="sim-run" type="button">▶ Run simulation</button>
+  <p class="sim-fallback hud" hidden>// WEBGL UNAVAILABLE — SIMULATION CANNOT RUN IN THIS BROWSER</p>
+</div>
+
+<style>
+  .sim-stage { position: relative; border: 1.5px solid var(--neutral); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .sim-thumb { display: block; width: 100%; height: auto; opacity: 0.6; }
+  .sim-run {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--accent); color: var(--bg); border: none; cursor: pointer;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8rem;
+    padding: 0.9rem 1.6rem; border-radius: 4px;
+  }
+  .sim-run:hover { background: var(--accent-bright); }
+  .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
+  :global(.sim-stage .glowscript) { background: #000; }
+</style>
+
+<script>
+  const BASE = '/glowscript/3.2';
+  const loadScript = (src: string) =>
+    new Promise<void>((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = () => res(); s.onerror = () => rej(new Error(src));
+      document.head.appendChild(s);
+    });
+  const loadCss = (href: string) => {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
+  };
+
+  function wire() {
+    const stage = document.querySelector<HTMLElement>('.sim-stage[data-slug]');
+    const btn = stage?.querySelector<HTMLButtonElement>('.sim-run');
+    if (!stage || !btn || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Loading…';
+      const probe = document.createElement('canvas');
+      if (!probe.getContext('webgl2') && !probe.getContext('webgl')) {
+        stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;
+        btn.remove();
+        return;
+      }
+      try {
+        loadCss(`${BASE}/jquery-ui.custom.css`);
+        loadCss(`${BASE}/ide.css`);
+        await loadScript(`${BASE}/jquery.min.js`);
+        await loadScript(`${BASE}/jquery-ui.custom.min.js`);
+        await loadScript(`${BASE}/glow.3.2.min.js`);
+        await loadScript(`${BASE}/RSrun.3.2.min.js`);
+        stage.querySelector('.sim-thumb')?.remove();
+        btn.remove();
+        const holder = document.createElement('div');
+        holder.id = 'glowscript'; holder.className = 'glowscript';
+        stage.appendChild(holder);
+        await loadScript(`/sim-code/${stage.dataset.slug}.js`);
+      } catch (e) {
+        stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;
+        console.error(e);
+      }
+    });
+  }
+  wire();
+  document.addEventListener('astro:after-swap', wire);
+</script>

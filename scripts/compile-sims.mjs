@@ -1,7 +1,7 @@
 // Build-time VPython -> JS for all published glowscript-render sims.
 // Writes src/content/sims/<slug>/compiled.js (committed build artifact).
 // Usage: node scripts/compile-sims.mjs
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import vm from 'node:vm';
 
@@ -57,6 +57,8 @@ function compileVPython(source) {
 const ROOT = new URL('..', import.meta.url).pathname;
 const SIMS = join(ROOT, 'src/content/sims');
 
+await mkdir(join(ROOT, 'public/sim-code'), { recursive: true });
+
 for (const slug of await readdir(SIMS)) {
   const md = await readFile(join(SIMS, slug, 'index.md'), 'utf8');
   if (!/render: glowscript/.test(md) || !/publish: true/.test(md)) continue;
@@ -66,5 +68,6 @@ for (const slug of await readdir(SIMS)) {
     '\n;$(function(){ window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }; __main__() })})()';
   js = js.replace('</', '<\\/');
   await writeFile(join(SIMS, slug, 'compiled.js'), js);
+  await writeFile(join(ROOT, 'public/sim-code', `${slug}.js`), js);
   console.log(`compiled ${slug} (${js.length} bytes)`);
 }

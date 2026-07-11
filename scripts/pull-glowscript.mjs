@@ -101,6 +101,11 @@ for (const folder of folders) {
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, 'source.py'), source);
     await writeFile(join(dir, 'thumbnail.png'), shot);
+    if (PUBLISH.has(slug)) {
+      // Published sims also get a copy under public/ for the card grid + run button.
+      await mkdir('public/sim-thumbs', { recursive: true });
+      await writeFile(join('public/sim-thumbs', `${slug}.png`), shot);
+    }
     // Later duplicate within the same run fully wins (overwrites index.md);
     // across separate runs the exists-check still protects hand-edited writeups.
     if (dupInRun || !(await exists(join(dir, 'index.md')))) await writeFile(join(dir, 'index.md'), front);

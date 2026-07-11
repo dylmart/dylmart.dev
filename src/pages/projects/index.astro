@@ -5,11 +5,23 @@ import SectionLabel from '../../components/SectionLabel.astro';
 <Layout title="Projects — dylmart_">
   <section class="band">
     <SectionLabel num="02" title="Projects" />
-    <p class="hud">// MISSION IN PROGRESS</p>
-    <p>Mission hardware is being assembled. Check back soon.</p>
+    <a class="feature reveal" href="/projects/sims/">
+      <h3>Physics Simulations →</h3>
+      <p>13 interactive physics sims written in Web VPython for the Physics 161-163 series, migrated here to run live: electric fields, orbital mechanics, standing waves, and a block-collision sim that counts out π.</p>
+      <span class="hud">// WEBGL + CANVAS · RUNS IN YOUR BROWSER</span>
+    </a>
+    <p class="hud" style="margin-top:1.6rem;">// MORE MISSION HARDWARE BEING ASSEMBLED — BACKENDS, GAMES, TOOLING</p>
   </section>
 </Layout>
 
 <style>
-  .band { padding: 2.2rem 1.75rem; min-height: 40vh; }
+  .band { padding: 2.2rem 1.75rem; min-height: 40vh; max-width: 56rem; }
+  .feature {
+    display: block; background: var(--surface); border: 1.5px solid var(--neutral); border-radius: 10px;
+    padding: 1.4rem; text-decoration: none; color: var(--text); margin-top: 1.2rem;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .feature:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .feature h3 { margin: 0 0 0.5rem; }
+  .feature p { margin: 0 0 0.7rem; font-size: 0.9rem; color: var(--text-dim); }
 </style>
