@@ -20,4 +20,12 @@ describe('Gravitation.2point physics', () => {
     for (let i = 0; i < 1_000; i++) { a.advance(a.dt); b.advance(b.dt); }
     expect(diagnostics(a)).toEqual(diagnostics(b));
   });
+  it('plots (t, |r|) with pre-update pairing, matching source.py plot order', () => {
+    const sim = createSim({});
+    sim.advance(sim.dt);
+    const points = sim.drainPlot!() ?? [];
+    expect(points.length).toBe(1);
+    expect(points[0].x).toBeCloseTo(0, 9);
+    expect(points[0].y).toBeCloseTo(10, 9);
+  });
 });
