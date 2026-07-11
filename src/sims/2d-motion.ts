@@ -45,13 +45,16 @@ function stepOnce(s: State): void {
   s.pos.x += s.v.x * DT;
   s.pos.y += s.v.y * DT;
 
+  // source.py plots (t, v.y) BEFORE incrementing t, so the point paired with
+  // this step's v.y is the pre-increment time, i.e. (n-1)*DT once n is bumped.
+  const plotT = s.n * DT;
   s.n += 1;
   s.t = s.n * DT;
 
   s.trail.push({ x: s.pos.x, y: s.pos.y });
   if (s.trail.length > MAX_TRAIL) s.trail.shift();
 
-  s.plotQueue.push({ x: s.t, y: s.v.y });
+  s.plotQueue.push({ x: plotT, y: s.v.y });
   if (s.plotQueue.length > MAX_PLOT_QUEUE) s.plotQueue.shift();
 
   if (s.n >= N_END) s.done = true;

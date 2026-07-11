@@ -18,4 +18,23 @@ describe('2d.motion physics', () => {
     expect(sim.done!()).toBe(true);
     expect(stateOf(sim).t).toBeCloseTo(5, 9);
   });
+  it('plots (t, v.y) with pre-increment t, matching source.py plot-then-advance order', () => {
+    const sim = createSim({});
+    sim.advance(sim.dt);
+    const points = sim.drainPlot!();
+    expect(points.length).toBe(1);
+    expect(points[0].x).toBeCloseTo(0, 9);
+    expect(points[0].y).toBeCloseTo(5.04, 9);
+  });
+  it('last plotted point lands at t=4.99, one dt before the sim stops at t=5', () => {
+    const sim = createSim({});
+    const drained: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < 600; i++) {
+      sim.advance(sim.dt);
+      drained.push(...sim.drainPlot!());
+    }
+    expect(sim.done!()).toBe(true);
+    expect(drained.length).toBe(500);
+    expect(drained[drained.length - 1].x).toBeCloseTo(4.99, 9);
+  });
 });
