@@ -64,7 +64,7 @@ test.describe('sims section', () => {
 });
 
 test.describe('canvas2d sims (registry not yet fully populated)', () => {
-  const unportedSlugs = ['2d-motion', 'rope-oscillations-sim', 'gravitation-2point', 'yoyo-lab3'];
+  const unportedSlugs = ['rope-oscillations-sim', 'gravitation-2point', 'yoyo-lab3'];
 
   for (const slug of unportedSlugs) {
     test(`${slug} degrades to a clear unavailable message, no dead canvas or controls`, async ({ page }) => {
@@ -77,7 +77,7 @@ test.describe('canvas2d sims (registry not yet fully populated)', () => {
   }
 
   test('soft-navigating away from an un-ported canvas2d page still works normally', async ({ page }) => {
-    await page.goto('/projects/sims/2d-motion/');
+    await page.goto('/projects/sims/rope-oscillations-sim/');
     await expect(page.locator('.sim-unavailable')).toBeVisible();
 
     await page.evaluate(() => {
@@ -94,7 +94,7 @@ test.describe('canvas2d sims (registry not yet fully populated)', () => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
-    await page.goto('/projects/sims/2d-motion/');
+    await page.goto('/projects/sims/rope-oscillations-sim/');
     await expect(page.locator('.sim-unavailable')).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -119,6 +119,33 @@ test.describe('pi-collisions (ported to Canvas2D)', () => {
 
   test('pi-collisions canvas animates', async ({ page }) => {
     await page.goto('/projects/sims/pi-collisions/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => sim is running
+  });
+});
+
+test.describe('2d-motion (ported to Canvas2D)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/2d-motion/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test('2d-motion canvas animates', async ({ page }) => {
+    await page.goto('/projects/sims/2d-motion/');
     const canvas = page.locator('.sim2d .sim-main');
     await expect(canvas).toBeVisible();
     const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
