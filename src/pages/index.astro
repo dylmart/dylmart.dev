@@ -13,10 +13,13 @@ import MissionCard from '../components/MissionCard.astro';
       <MissionCard href="/photos" title="Photos" blurb="Photo projects and a curated gallery, shot on Canon." hue="gray" />
       <MissionCard href="/blog" title="Blog" blurb="Dev logs, homelab incidents, D&D, life in SLO." hue="paper" />
     </div>
+    <a class="simline reveal mono" href="/projects/sims/">// NEW: 13 PHYSICS SIMS NOW RUN LIVE IN YOUR BROWSER →</a>
   </section>
 </Layout>
 
 <style>
   .band { padding: 2.2rem 1.75rem; }
   .tripcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem; }
+  .simline { display: inline-block; margin-top: 1.1rem; font-size: 0.75rem; letter-spacing: 0.12em; color: var(--accent); text-decoration: none; }
+  .simline:hover { color: var(--accent-bright); }
 </style>

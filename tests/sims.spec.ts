@@ -1,5 +1,28 @@
 import { test, expect } from '@playwright/test';
 
+test.describe('accessibility', () => {
+  test('canvas2d sims do not autoplay under reduced motion', async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' });
+    const page = await ctx.newPage();
+    await page.goto('/projects/sims/pi-collisions/');
+    await expect(page.locator('.sim2d [data-act="toggle"]')).toHaveText(/play/i);
+    const canvas = page.locator('.sim2d .sim-main');
+    const a = await canvas.screenshot();
+    await page.waitForTimeout(600);
+    expect((await canvas.screenshot()).equals(a)).toBe(true); // static until Play
+    await ctx.close();
+  });
+
+  test('privacy sweep covers sim pages', async ({ page }) => {
+    for (const route of ['/projects/sims/', '/projects/sims/pi-collisions/', '/projects/sims/straight-wire/']) {
+      await page.goto(route);
+      const html = (await page.content()).toLowerCase();
+      expect(html).not.toContain('mailto:');
+      expect(html).not.toContain('tel:');
+    }
+  });
+});
+
 test.describe('sims section', () => {
   test('index lists exactly the 13 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
