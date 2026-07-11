@@ -6,5 +6,6 @@ export const registry: Record<string, () => Promise<{ default: SimFactory; param
   'pi-collisions': () => import('./pi-collisions'),
   '2d-motion': () => import('./2d-motion'),
   'gravitation-2point': () => import('./gravitation-2point'),
+  'rope-oscillations-sim': () => import('./rope-oscillations-sim'),
   // remaining port tasks add entries here, e.g.:
 };
