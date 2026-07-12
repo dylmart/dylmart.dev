@@ -74,10 +74,12 @@ function makeState(): State {
 // Dylan-requested extension beyond source.py: source.py's while-loop simply
 // exits once the string is fully paid out, with no bounce or free-fall phase
 // modeled afterward. Here the yoyo instead rebounds at the bottom of the
-// string and climbs back up by rewinding, flipping again at the top — an
-// energy-conserving mirror of the descent (same |alpha|, same
-// rolling-without-slipping kinematics run in reverse) so it oscillates
-// forever instead of freezing.
+// string and climbs back up by rewinding, flipping again at the top (same
+// |alpha|, same rolling-without-slipping kinematics run in reverse), so it
+// oscillates forever instead of freezing. NOT a perfect limit cycle: the
+// bottom flip clamps position (unrolled) while the top flip clamps velocity
+// (omega), and that asymmetry bleeds ~2.3% of the amplitude per period — the
+// peak drifts a little lower each cycle, like a real yoyo winding down.
 function stepOnce(s: State): void {
   s.omega += s.direction * ALPHA * DT;
   if (s.direction === -1 && s.omega < 0) s.omega = 0; // clamp omega >= 0 at the top-of-climb flip
