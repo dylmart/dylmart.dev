@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { FixedStepper } from './host';
+import { FixedStepper, pointerStateReducer } from './host';
+
+describe('pointer state reducer', () => {
+  it('pointer reducer tracks held across down/move/up', () => {
+    let held = false;
+    held = pointerStateReducer('down', held);   // -> true
+    expect(held).toBe(true);
+    held = pointerStateReducer('move', held);   // unchanged
+    expect(held).toBe(true);
+    held = pointerStateReducer('up', held);     // -> false
+    expect(held).toBe(false);
+  });
+});
 
 describe('fixed timestep accumulator', () => {
   it('steps exactly floor(elapsed/dt) times and banks the remainder', () => {

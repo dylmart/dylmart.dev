@@ -1,4 +1,11 @@
 export interface SimView { w: number; h: number; css: (name: string) => string }
+export interface SimPointerEvent {
+  type: 'down' | 'move' | 'up';
+  /** canvas CSS-pixel coords, origin top-left; sims map to world themselves */
+  x: number; y: number;
+  /** true while a button/touch is held */
+  held: boolean;
+}
 export interface Sim2D {
   /** advance physics by dt seconds (fixed step, called 0..n times per frame) */
   advance(dt: number): void;
@@ -8,6 +15,8 @@ export interface Sim2D {
   done?(): boolean;
   /** streaming plot points emitted since last drain, or null if the sim has no plot */
   drainPlot?(): Array<{ x: number; y: number }> | null;
+  /** optional: receive pointer input; return true to request an immediate redraw */
+  onPointer?(ev: SimPointerEvent, view: SimView): boolean | void;
   reset(): void;
   /** physics step size in seconds, and how many real seconds one sim second takes */
   readonly dt: number;
