@@ -16,7 +16,7 @@ const { sim } = Astro.props;
 const { Content } = await render(sim);
 const source = sim.data.native ? null : await readFile(`src/content/sims/${sim.id}/source.py`, 'utf8');
 ---
-<Layout title={`${sim.data.title} — dylmart_`} description={sim.data.summary}>
+<Layout title={`${sim.data.title} · dylmart_`} description={sim.data.summary}>
   <section class="band">
     <SectionLabel num="02" title={sim.data.title} />
     {sim.data.native

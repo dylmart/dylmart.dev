@@ -8,4 +8,5 @@ glowscript_version: "n/a"
 folder_origin: "FunProjects"
 sort: 2
 ---
-Built native for this site. Click and drag anywhere to launch a planet (a plain click drops one at rest), and drag from the probe to fling it into a new orbit. Everything that collides is wrecked and fades away — including into the sun.
+
+Built native for this site. Click and drag anywhere to launch a planet; a plain click drops one at rest. Drag the probe itself to fling it onto a new orbit. Anything that collides turns into an X and fades away, sun included.

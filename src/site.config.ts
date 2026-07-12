@@ -4,7 +4,7 @@ export const SITE = {
   tagline:
     'Computer science student at Cal Poly SLO building backends, games, physics sims, and an over-engineered homelab. Photographer on the side.',
   description:
-    'Dylan Martin (dylmart) — developer portfolio, photography, and blog.',
+    'Dylan Martin (dylmart): developer portfolio, photography, and blog.',
   nav: [
     { label: 'Projects', href: '/projects' },
     { label: 'Photos', href: '/photos' },
