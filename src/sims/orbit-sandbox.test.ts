@@ -49,7 +49,7 @@ describe('orbit-sandbox physics', () => {
     for (let i = 0; i < 100; i++) sim.advance(sim.dt);
     sim.reset();
     const { probe, bodies } = orbitState(sim);
-    expect(probe).toEqual({ x: 12, y: 0, vx: 0, vy: Math.sqrt((50 * 200) / 12), alive: true });
+    expect(probe).toEqual({ x: 12, y: 0, vx: 0, vy: Math.sqrt((50 * 200) / 12), alive: true, deadAt: null });
     expect(bodies).toEqual([]);
   });
 
@@ -111,7 +111,7 @@ describe('orbit-sandbox physics', () => {
     expect(after).toEqual(before);
   });
 
-  it('probe crash freezes it (alive=false) while planets keep orbiting', () => {
+  it('probe crash kills the planet it hits too, and the wreck fades then is purged (rule 2)', () => {
     const sim = createSim({});
     const view = { w: 640, h: 640, css: () => '' };
     // Drop a planet just ahead of the probe on its circular path (far enough
@@ -125,12 +125,108 @@ describe('orbit-sandbox physics', () => {
     sim.onPointer!({ type: 'up', x: px, y: py, held: false }, view);
     for (let i = 0; i < 4000 && orbitState(sim).probe.alive; i++) sim.advance(sim.dt);
     expect(orbitState(sim).probe.alive).toBe(false);
+    // Rule 2 ("anything that collides behaves the same"): the planet the
+    // probe hit dies too, it no longer keeps orbiting.
+    expect(orbitState(sim).bodies[0]!.alive).toBe(false);
+    expect(orbitState(sim).bodies[0]!.deadAt).not.toBeNull();
     const frozen = orbitState(sim).probe;
-    for (let i = 0; i < 100; i++) sim.advance(sim.dt);
-    // probe stays frozen...
+
+    // FADE_T (3s) plus a margin of further sim time: the dead planet is
+    // purged from `bodies` entirely; the probe (never purged) stays frozen.
+    const FADE_T = 3;
+    const steps = Math.ceil((FADE_T + 0.1) / sim.dt);
+    for (let i = 0; i < steps; i++) sim.advance(sim.dt);
+    expect(orbitState(sim).bodies.length).toBe(0);
     expect(orbitState(sim).probe).toEqual(frozen);
-    // ...but the planet (attracted by the sun) has kept moving.
-    expect(orbitState(sim).bodies[0]!.vx !== 0 || orbitState(sim).bodies[0]!.vy !== 0).toBe(true);
+  });
+
+  it('a planet launched straight at the sun dies, then fades and is purged after FADE_T', () => {
+    const sim = createSim({});
+    const view = { w: 640, h: 640, css: () => '' };
+    // Spawn far from both the sun and the probe's default position, and drag
+    // straight toward the origin (screen-right => +x world) so the planet
+    // flies radially at the sun with no tangential component.
+    const wx = -6, wy = 0;
+    const px = view.w / 2 + (wx / 40) * view.w;
+    const py = view.h / 2 - (wy / 40) * view.h;
+    sim.onPointer!({ type: 'down', x: px, y: py, held: true }, view);
+    sim.onPointer!({ type: 'move', x: px + 200, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px + 200, y: py, held: false }, view);
+    expect(orbitState(sim).bodies[0]!.alive).toBe(true);
+
+    let steps = 0;
+    while (orbitState(sim).bodies[0]!.alive && steps < 2000) {
+      sim.advance(sim.dt);
+      steps++;
+    }
+    expect(steps).toBeLessThan(2000);
+    expect(orbitState(sim).bodies[0]!.alive).toBe(false);
+    expect(orbitState(sim).bodies[0]!.deadAt).not.toBeNull();
+
+    const FADE_T = 3;
+    const fadeSteps = Math.ceil((FADE_T + 0.1) / sim.dt);
+    for (let i = 0; i < fadeSteps; i++) sim.advance(sim.dt);
+    expect(orbitState(sim).bodies.length).toBe(0);
+  });
+
+  it('two planets launched head-on into each other both die', () => {
+    const sim = createSim({});
+    const view = { w: 640, h: 640, css: () => '' };
+    const wy = 15;
+    const py = view.h / 2 - (wy / 40) * view.h;
+
+    // left planet at world (-2, 15), launched rightward (+x)
+    const pxLeft = view.w / 2 + (-2 / 40) * view.w;
+    sim.onPointer!({ type: 'down', x: pxLeft, y: py, held: true }, view);
+    sim.onPointer!({ type: 'move', x: pxLeft + 300, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: pxLeft + 300, y: py, held: false }, view);
+
+    // right planet at world (2, 15), launched leftward (-x)
+    const pxRight = view.w / 2 + (2 / 40) * view.w;
+    sim.onPointer!({ type: 'down', x: pxRight, y: py, held: true }, view);
+    sim.onPointer!({ type: 'move', x: pxRight - 300, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: pxRight - 300, y: py, held: false }, view);
+
+    expect(orbitState(sim).bodies.length).toBe(2);
+    expect(orbitState(sim).bodies.every((b) => b.alive)).toBe(true);
+
+    let steps = 0;
+    while (orbitState(sim).bodies.every((b) => b.alive) && steps < 200) {
+      sim.advance(sim.dt);
+      steps++;
+    }
+    expect(steps).toBeLessThan(200);
+    const { bodies } = orbitState(sim);
+    expect(bodies.length).toBe(2);
+    expect(bodies[0]!.alive).toBe(false);
+    expect(bodies[1]!.alive).toBe(false);
+  });
+
+  it('dead planets exert no gravity: probe accel over a step matches the sun-only prediction once nearby planets have collided and died', () => {
+    const sim = createSim({});
+    const view = { w: 640, h: 640, css: () => '' };
+    // Drop two planets at the exact same point, near the probe's orbital
+    // path (world (12, 3)): they collide with EACH OTHER on the very first
+    // physics step and die, without ever touching the probe.
+    const wx = 12, wy = 3;
+    const px = view.w / 2 + (wx / 40) * view.w;
+    const py = view.h / 2 - (wy / 40) * view.h;
+    sim.onPointer!({ type: 'down', x: px, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px, y: py, held: false }, view);
+    sim.onPointer!({ type: 'down', x: px, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px, y: py, held: false }, view);
+    expect(orbitState(sim).bodies.length).toBe(2);
+
+    sim.advance(sim.dt); // first step: the two planets collide with each other and die
+    const { bodies, probe: p1 } = orbitState(sim);
+    expect(bodies.every((b) => !b.alive)).toBe(true);
+
+    sim.advance(sim.dt); // second step: dead planets must not be gravity sources
+    const p2 = orbitState(sim).probe;
+
+    const predicted = accelOn({ x: p1.x, y: p1.y }, [{ x: 0, y: 0, m: 200 }]);
+    expect(p2.vx - p1.vx).toBeCloseTo(predicted.x * 0.002, 9);
+    expect(p2.vy - p1.vy).toBeCloseTo(predicted.y * 0.002, 9);
   });
 
   it('drag on empty space LAUNCHES a planet with the drag vector (Dylan request)', () => {

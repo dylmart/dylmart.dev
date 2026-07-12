@@ -17,31 +17,40 @@ const PLANET_R = 0.7;
 const MAX_PLANETS = 8;
 
 const MAX_TRAIL = 600; // defensive cap on the probe's drawn trail
+const PLANET_TRAIL_MAX = 200; // per-planet trail cap
+
+const FADE_T = 3; // seconds a dead body's X marker + trail take to fade out
 
 const DRAG_HIT_RADIUS_PX = 25; // pointer-down within this many px of the probe starts a drag
 const FLING_SCALE = 3; // release velocity = dragVector_world * FLING_SCALE
 
 interface Vec2 { x: number; y: number }
 interface GravSource { x: number; y: number; m: number }
-interface Body extends GravSource { vx: number; vy: number; r: number }
-interface Probe { x: number; y: number; vx: number; vy: number; alive: boolean }
+interface Body extends GravSource {
+  vx: number; vy: number; r: number;
+  alive: boolean;
+  deadAt: number | null;
+  trail: Vec2[];
+}
+interface Probe { x: number; y: number; vx: number; vy: number; alive: boolean; deadAt: number | null }
 
 interface State {
   probe: Probe;
   bodies: Body[];
   trail: Vec2[];
+  t: number;
 }
 
 function makeProbe(): Probe {
   // circular orbit at r=12: v = sqrt(G*SUN.m/r), tangential (screen: straight up)
   const r = 12;
   const v = Math.sqrt((G * SUN.m) / r);
-  return { x: r, y: 0, vx: 0, vy: v, alive: true };
+  return { x: r, y: 0, vx: 0, vy: v, alive: true, deadAt: null };
 }
 
 function makeState(): State {
   const probe = makeProbe();
-  return { probe, bodies: [], trail: [{ x: probe.x, y: probe.y }] };
+  return { probe, bodies: [], trail: [{ x: probe.x, y: probe.y }], t: 0 };
 }
 
 /**
@@ -77,23 +86,36 @@ export function flingFromDrag(drag: { dx: number; dy: number }, pxPerUnit: numbe
 // One n-body step, semi-implicit Euler (v += a*dt, then p += v*dt), same
 // order as 2d-motion. All accelerations are computed from the PRE-step
 // positions first (order-independent), then everything is integrated:
-//   - planets feel the sun and every OTHER planet, never the probe.
-//   - the probe feels the sun and every planet (it has ~zero mass, so it
-//     never perturbs anything back).
-// After integrating, the probe is collision-checked against the sun and
-// every planet; a hit freezes it (alive=false) but never stops the planets.
+//   - planets feel the sun and every OTHER ALIVE planet, never the probe.
+//   - the probe feels the sun and every ALIVE planet (it has ~zero mass, so
+//     it never perturbs anything back).
+// Dead bodies are frozen in place (skipped by integration) and are never
+// gravity sources.
+//
+// After integrating, collisions are checked (only pairs where both sides are
+// alive): probe-vs-sun/planet kills the probe AND the planet it hit (Dylan
+// request 2 — every collision behaves the same); planet-vs-sun kills the
+// planet (request 3); planet-vs-planet kills both. Death sets alive=false
+// and deadAt=t; a dead body's X marker and trail fade over FADE_T seconds
+// (see draw()), after which dead PLANETS are purged from `bodies` entirely.
+// The probe is never purged — it just stops being drawn once fully faded,
+// and reset() brings it back.
 function stepOnce(s: State): void {
-  const bodyAccels = s.bodies.map((b, i) =>
-    accelOn(b, [SUN, ...s.bodies.filter((_, j) => j !== i)]),
-  );
-  const probeAccel = s.probe.alive ? accelOn(s.probe, [SUN, ...s.bodies]) : null;
+  s.t += DT;
+
+  const aliveBodies = s.bodies.filter((b) => b.alive);
+  const bodyAccels = s.bodies.map((b) => (b.alive ? accelOn(b, [SUN, ...aliveBodies.filter((o) => o !== b)]) : null));
+  const probeAccel = s.probe.alive ? accelOn(s.probe, [SUN, ...aliveBodies]) : null;
 
   s.bodies.forEach((b, i) => {
+    if (!b.alive) return;
     const a = bodyAccels[i]!;
     b.vx += a.x * DT;
     b.vy += a.y * DT;
     b.x += b.vx * DT;
     b.y += b.vy * DT;
+    b.trail.push({ x: b.x, y: b.y });
+    if (b.trail.length > PLANET_TRAIL_MAX) b.trail.shift();
   });
 
   if (s.probe.alive && probeAccel) {
@@ -102,15 +124,60 @@ function stepOnce(s: State): void {
     s.probe.x += s.probe.vx * DT;
     s.probe.y += s.probe.vy * DT;
 
-    const sources: Array<{ x: number; y: number; r: number }> = [SUN, ...s.bodies];
-    for (const src of sources) {
-      const dist = Math.hypot(s.probe.x - src.x, s.probe.y - src.y);
-      if (dist < src.r) { s.probe.alive = false; break; }
-    }
-
     s.trail.push({ x: s.probe.x, y: s.probe.y });
     if (s.trail.length > MAX_TRAIL) s.trail.shift();
   }
+
+  // probe vs. sun / planets: a hit kills the probe AND the planet it hit.
+  if (s.probe.alive) {
+    const distSun = Math.hypot(s.probe.x - SUN.x, s.probe.y - SUN.y);
+    if (distSun < SUN.r) {
+      s.probe.alive = false;
+      s.probe.deadAt = s.t;
+    } else {
+      for (const b of s.bodies) {
+        if (!b.alive) continue;
+        const dist = Math.hypot(s.probe.x - b.x, s.probe.y - b.y);
+        if (dist < b.r) {
+          s.probe.alive = false;
+          s.probe.deadAt = s.t;
+          b.alive = false;
+          b.deadAt = s.t;
+          break;
+        }
+      }
+    }
+  }
+
+  // planet vs. sun
+  for (const b of s.bodies) {
+    if (!b.alive) continue;
+    const dist = Math.hypot(b.x - SUN.x, b.y - SUN.y);
+    if (dist < SUN.r + b.r) {
+      b.alive = false;
+      b.deadAt = s.t;
+    }
+  }
+
+  // planet vs. planet
+  for (let i = 0; i < s.bodies.length; i++) {
+    const bi = s.bodies[i]!;
+    if (!bi.alive) continue;
+    for (let j = i + 1; j < s.bodies.length; j++) {
+      const bj = s.bodies[j]!;
+      if (!bj.alive) continue;
+      const dist = Math.hypot(bi.x - bj.x, bi.y - bj.y);
+      if (dist < bi.r + bj.r) {
+        bi.alive = false;
+        bi.deadAt = s.t;
+        bj.alive = false;
+        bj.deadAt = s.t;
+      }
+    }
+  }
+
+  // Purge fully-faded dead planets, freeing their MAX_PLANETS slot.
+  s.bodies = s.bodies.filter((b) => b.alive || s.t - b.deadAt! < FADE_T);
 }
 
 // Maps a live Sim2D instance to its internal physics state, without putting
@@ -123,7 +190,7 @@ export function orbitState(sim: Sim2D): { probe: Probe; bodies: Body[] } {
   if (!s) throw new Error('orbitState: not an orbit-sandbox sim instance');
   return {
     probe: { ...s.probe },
-    bodies: s.bodies.map((b) => ({ ...b })),
+    bodies: s.bodies.map((b) => ({ ...b, trail: b.trail.map((p) => ({ ...p })) })),
   };
 }
 
@@ -167,16 +234,49 @@ const factory = (_p: Record<string, number>): Sim2D => {
     draw(ctx: CanvasRenderingContext2D, view: SimView) {
       ctx.clearRect(0, 0, view.w, view.h);
 
-      // probe trail
-      if (state.trail.length >= 2) {
-        ctx.strokeStyle = view.css('--text-dim');
+      const trailColor = view.css('--text-dim');
+      const planetColor = view.css('--accent-cool');
+      const crashColor = view.css('--accent-bright');
+
+      // 1 while alive; ramps down to 0 over FADE_T seconds after deadAt, then
+      // stays clamped at 0 (never negative, never NaN even if deadAt is in
+      // the future for some reason).
+      const fadeAlpha = (deadAt: number | null): number => {
+        if (deadAt === null) return 1;
+        const frac = 1 - (state.t - deadAt) / FADE_T;
+        return Math.max(0, Math.min(1, frac));
+      };
+
+      const drawTrail = (trail: Vec2[]) => {
+        if (trail.length < 2) return;
+        ctx.strokeStyle = trailColor;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        state.trail.forEach((pt, i) => {
+        trail.forEach((pt, i) => {
           const { px, py } = worldToPx(pt.x, pt.y, view);
           i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
         });
         ctx.stroke();
+      };
+
+      const drawCross = (px: number, py: number) => {
+        ctx.strokeStyle = crashColor;
+        ctx.lineWidth = 2;
+        const cross = 7;
+        ctx.beginPath();
+        ctx.moveTo(px - cross, py - cross);
+        ctx.lineTo(px + cross, py + cross);
+        ctx.moveTo(px + cross, py - cross);
+        ctx.lineTo(px - cross, py + cross);
+        ctx.stroke();
+      };
+
+      // probe trail (fades with the probe once it's dead)
+      const probeTrailAlpha = fadeAlpha(state.probe.deadAt);
+      if (probeTrailAlpha > 0) {
+        ctx.globalAlpha = probeTrailAlpha;
+        drawTrail(state.trail);
+        ctx.globalAlpha = 1;
       }
 
       // sun
@@ -186,32 +286,38 @@ const factory = (_p: Record<string, number>): Sim2D => {
       ctx.arc(sunPx.px, sunPx.py, 14, 0, Math.PI * 2);
       ctx.fill();
 
-      // planets
-      ctx.fillStyle = view.css('--neutral');
+      // planets: trail + body (alive) or fading X (dead)
       state.bodies.forEach((b) => {
+        const alpha = fadeAlpha(b.deadAt);
+        if (alpha <= 0) return;
+        ctx.globalAlpha = alpha;
+        drawTrail(b.trail);
         const { px, py } = worldToPx(b.x, b.y, view);
-        ctx.beginPath();
-        ctx.arc(px, py, 6, 0, Math.PI * 2);
-        ctx.fill();
+        if (b.alive) {
+          ctx.fillStyle = planetColor;
+          ctx.beginPath();
+          ctx.arc(px, py, 6, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          drawCross(px, py);
+        }
+        ctx.globalAlpha = 1;
       });
 
-      // probe (or crash marker if it collided)
+      // probe (or a fading crash marker if it collided)
       const probePx = worldToPx(state.probe.x, state.probe.y, view);
-      if (state.probe.alive) {
-        ctx.fillStyle = view.css('--accent-cool');
-        ctx.beginPath();
-        ctx.arc(probePx.px, probePx.py, 4, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.strokeStyle = view.css('--accent-bright');
-        ctx.lineWidth = 2;
-        const cross = 7;
-        ctx.beginPath();
-        ctx.moveTo(probePx.px - cross, probePx.py - cross);
-        ctx.lineTo(probePx.px + cross, probePx.py + cross);
-        ctx.moveTo(probePx.px + cross, probePx.py - cross);
-        ctx.lineTo(probePx.px - cross, probePx.py + cross);
-        ctx.stroke();
+      const probeAlpha = fadeAlpha(state.probe.deadAt);
+      if (probeAlpha > 0) {
+        ctx.globalAlpha = probeAlpha;
+        if (state.probe.alive) {
+          ctx.fillStyle = planetColor;
+          ctx.beginPath();
+          ctx.arc(probePx.px, probePx.py, 4, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          drawCross(probePx.px, probePx.py);
+        }
+        ctx.globalAlpha = 1;
       }
 
       // live aim feedback while a gesture is in progress
@@ -219,7 +325,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
         drawArrow(ctx, probePx.px, probePx.py, gesture.current.x, gesture.current.y, view.css('--accent-cool'), 2, 6);
       } else if (gesture?.kind === 'planet') {
         ctx.globalAlpha = 0.5;
-        ctx.fillStyle = view.css('--neutral');
+        ctx.fillStyle = planetColor;
         ctx.beginPath();
         ctx.arc(gesture.originPx.x, gesture.originPx.y, 6, 0, Math.PI * 2);
         ctx.fill();
@@ -251,10 +357,6 @@ const factory = (_p: Record<string, number>): Sim2D => {
           return true;
         }
         const world = pxToWorld(ev.x, ev.y, view);
-        // Reject launches from on/near the sun: softened gravity at
-        // near-zero range slingshots the planet off-screen where it
-        // silently eats a slot.
-        if (Math.hypot(world.x - SUN.x, world.y - SUN.y) < 2) return true;
         gesture = { kind: 'planet', origin: world, originPx: { x: ev.x, y: ev.y }, current: { x: ev.x, y: ev.y } };
         return true;
       }
@@ -282,7 +384,10 @@ const factory = (_p: Record<string, number>): Sim2D => {
         const dx = g.current.x - g.originPx.x;
         const dy = g.current.y - g.originPx.y;
         const v = Math.hypot(dx, dy) < CLICK_EPS_PX ? { x: 0, y: 0 } : flingFromDrag({ dx, dy }, pxPerUnit);
-        state.bodies.push({ x: g.origin.x, y: g.origin.y, vx: v.x, vy: v.y, m: PLANET_M, r: PLANET_R });
+        state.bodies.push({
+          x: g.origin.x, y: g.origin.y, vx: v.x, vy: v.y, m: PLANET_M, r: PLANET_R,
+          alive: true, deadAt: null, trail: [{ x: g.origin.x, y: g.origin.y }],
+        });
         if (state.bodies.length > MAX_PLANETS) state.bodies.shift();
         return true;
       }
