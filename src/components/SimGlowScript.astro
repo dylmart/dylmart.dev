@@ -83,8 +83,12 @@ const { slug, thumbSrc, title } = Astro.props;
         return;
       }
       try {
+        // NOTE: deliberately NOT loading ide.css. It contains only glowscript.org
+        // IDE page chrome (bare `body { background: #f1f2f4; font-family: Verdana }`
+        // etc. — no .glowscript/canvas rules at all) and repaints the whole site
+        // when injected. jquery-ui.custom.css is safe: scoped to .ui-* selectors,
+        // needed for sims that use jquery-ui widgets.
         loadCss(`${BASE}/jquery-ui.custom.css`);
-        loadCss(`${BASE}/ide.css`);
         await loadScript(`${BASE}/jquery.min.js`);
         await loadScript(`${BASE}/jquery-ui.custom.min.js`);
         await loadScript(`${BASE}/glow.3.2.min.js`);

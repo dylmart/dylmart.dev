@@ -42,6 +42,23 @@ test.describe('sims section', () => {
     await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test('booting a glowscript sim does not restyle the page (ide.css leak)', async ({ page }) => {
+    // Regression: loading upstream ide.css injected bare `body { background; font }`
+    // rules that repainted the whole site once a sim was run.
+    await page.goto('/projects/sims/particle-in-a-bottle/');
+    const before = await page.evaluate(() => {
+      const s = getComputedStyle(document.body);
+      return { bg: s.backgroundColor, font: s.fontFamily, size: s.fontSize };
+    });
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+    const after = await page.evaluate(() => {
+      const s = getComputedStyle(document.body);
+      return { bg: s.backgroundColor, font: s.fontFamily, size: s.fontSize };
+    });
+    expect(after).toEqual(before);
+  });
+
   test('view-source shows original VPython', async ({ page }) => {
     await page.goto('/projects/sims/straight-wire/');
     await page.locator('details.sim-source summary').click();
