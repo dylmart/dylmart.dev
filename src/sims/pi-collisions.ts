@@ -110,8 +110,8 @@ function worldToPx(x: number, worldMin: number, worldMax: number, w: number): nu
   return ((x - worldMin) / (worldMax - worldMin)) * w;
 }
 
-const WORLD_MIN = -2;
-const WORLD_MAX = 18;
+const WORLD_MIN = -3;
+const WORLD_MAX = 25;
 
 const factory = (p: Record<string, number>): Sim2D => {
   const massExp = p.massExp ?? 2;
