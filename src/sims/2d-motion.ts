@@ -3,27 +3,32 @@ import type { ParamSpec } from './registry';
 import { drawArrow } from './draw';
 
 // ----- physics constants (mirrors src/content/sims/2d-motion/source.py) -----
-const AX = 0; // Dylan's request: acceleration is always aligned with the y
-              // axis (the original program's a=(-3,4) diagonal is gone; only
-              // the ay select varies the acceleration now).
+// This sim started as a faithful port of source.py (pinned constants
+// v0=(3,5), a=(-3,4), stop at t=5). The owner has since deliberately diverged
+// it: acceleration is always aligned with the y axis (ax stays 0; only ay
+// varies), launch parameters are free numeric input instead of fixed
+// dropdowns, gravity (-9.8) is the default acceleration instead of the
+// original a=(-3,4)'s y-component, and the run stops when the ball lands back
+// at y=0 instead of always running to a fixed t=5. T_END/N_END below now
+// serve only as a safety cap for configurations that never land (e.g. ay >= 0).
+const AX = 0;
 const DT = 0.01;
 const T_END = 5;
 const N_END = Math.round(T_END / DT); // 500 steps; counting steps (not accumulating t) avoids float drift
 
 const MAX_TRAIL = 2000; // defensive cap on the drawn trail polyline
-const MAX_PLOT_QUEUE = 2000; // defensive cap on the drain queue (500 steps to t=5, but never unbounded)
+const MAX_PLOT_QUEUE = 2000; // defensive cap on the drain queue (bounded by N_END steps, but never unbounded)
 
 const AIM_HIT_RADIUS_PX = 20; // pointer-down within this many px of the launch point starts drag-to-aim
 const GHOST_SAMPLE_DT = 0.25; // predicted-path ghost sample spacing, in sim seconds
 
-// Launch parameters: rendered automatically by SimCanvas2D as `.sim-params`
-// selects. Defaults MUST equal the original constants (v0=(3,5), a=(-3,4)) so
-// every pre-existing pinned test below still passes unchanged when no params
-// are passed in.
+// Launch parameters: rendered automatically by SimCanvas2D as free numeric
+// `.sim-params` inputs (Dylan's request: type your own numbers instead of
+// picking from a dropdown). ay defaults to g (-9.8) per Dylan's ask.
 export const params: ParamSpec[] = [
-  { key: 'v0x', label: 'v₀x', values: [0, 3, 6, 9], initial: 3 },
-  { key: 'v0y', label: 'v₀y', values: [2, 5, 8, 12], initial: 5 },
-  { key: 'ay', label: 'aᵧ', values: [-9.8, -4, 4], initial: 4 },
+  { key: 'v0x', label: 'v₀x', input: 'number', initial: 3, min: -20, max: 20, step: 0.5 },
+  { key: 'v0y', label: 'v₀y', input: 'number', initial: 5, min: -20, max: 20, step: 0.5 },
+  { key: 'ay', label: 'aᵧ', input: 'number', initial: -9.8, min: -20, max: 20, step: 0.1 },
 ];
 
 interface Vec2 { x: number; y: number }
@@ -94,6 +99,10 @@ function stepOnce(s: State, a: Vec2): void {
   s.plotQueue.push({ x: plotT, y: s.v.y });
   if (s.plotQueue.length > MAX_PLOT_QUEUE) s.plotQueue.shift();
 
+  // Ground stop (Dylan's ask): freeze once the ball lands back at y=0.
+  // Safety cap: also stop at t=5 so upward-accelerating configurations
+  // (e.g. ay >= 0) that never land don't run forever.
+  if (s.n > 0 && s.pos.y <= 0) s.done = true;
   if (s.n >= N_END) s.done = true;
 }
 
@@ -120,7 +129,7 @@ function worldToPx(x: number, y: number, view: SimView): { px: number; py: numbe
 }
 
 const factory = (p: Record<string, number>): Sim2D => {
-  const a: Vec2 = { x: AX, y: p.ay ?? 4 };
+  const a: Vec2 = { x: AX, y: p.ay ?? -9.8 };
   // Current launch velocity: starts from params, mutated in place by
   // drag-to-aim. Both the public reset() and the drag-end handler restart
   // the run from this same value, so re-aiming "sticks" across a Reset.

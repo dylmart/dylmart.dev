@@ -165,6 +165,7 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await expect(page.locator('[data-act="reset"]')).toBeVisible();
     await expect(page.locator('[data-act="speed"]')).toBeVisible();
     await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // graph cut per Dylan
+    await expect(page.locator('.sim-params input[type="number"]')).toHaveCount(3); // v0x, v0y, ay
     expect(errors).toEqual([]);
   });
 
@@ -182,9 +183,11 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await page.goto('/projects/sims/2d-motion/');
     const canvas = page.locator('.sim2d .sim-main');
     await expect(canvas).toBeVisible();
-    const selects = page.locator('.sim-params select');
-    await expect(selects).toHaveCount(3); // v0x, v0y, ay
-    await selects.nth(1).selectOption('8'); // v0y: 5 -> 8
+    const inputs = page.locator('.sim-params input[type="number"]');
+    await expect(inputs).toHaveCount(3); // v0x, v0y, ay
+    const v0yInput = page.locator('.sim-params input[data-key="v0y"]');
+    await v0yInput.fill('8'); // v0y: 5 -> 8
+    await v0yInput.dispatchEvent('change');
     // a param change pauses and rebuilds the sim (fresh instance), so it
     // needs an explicit Play click to resume animating.
     await page.locator('[data-act="toggle"]').click();

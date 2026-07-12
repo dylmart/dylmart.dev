@@ -29,7 +29,12 @@ const { slug, hasPlot } = Astro.props;
     background: none; border: 1.5px solid var(--neutral); border-radius: 4px; color: var(--text);
     font: inherit; padding: 0.35rem 0.8rem; cursor: pointer;
   }
+  .sim-controls input[type="number"] {
+    background: none; border: 1.5px solid var(--neutral); border-radius: 4px; color: var(--text);
+    font: inherit; padding: 0.35rem 0.8rem; width: 5.5rem;
+  }
   .sim-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .sim-controls input[type="number"]:hover { border-color: var(--accent); color: var(--accent); }
   .sim-unavailable { padding: 0.9rem; margin: 0; }
 </style>
 
@@ -85,13 +90,34 @@ const { slug, hasPlot } = Astro.props;
     if (sim.hideSpeedControl) speedSel.remove();
     else speedSel.addEventListener('change', (e) => h.setSpeed(Number((e.target as HTMLSelectElement).value)));
 
-    // param selects (e.g. PiCollisions mass ratio)
+    // param controls: discrete choices (e.g. PiCollisions mass ratio) render
+    // as a select; `input: 'number'` params render as a free numeric input.
     const holder = root.querySelector<HTMLElement>('.sim-params')!;
     for (const p of mod.params ?? []) {
       const label = document.createElement('label');
       label.append(`${p.label} `);
+      if (p.input === 'number') {
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.dataset.key = p.key;
+        inp.value = String(p.initial);
+        if (p.min !== undefined) inp.min = String(p.min);
+        if (p.max !== undefined) inp.max = String(p.max);
+        if (p.step !== undefined) inp.step = String(p.step);
+        inp.addEventListener('change', () => {
+          const parsed = Number(inp.value);
+          const clamped = Number.isNaN(parsed)
+            ? p.initial
+            : Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, parsed));
+          inp.value = String(clamped);
+          params[p.key] = clamped;
+          h.pause(); h = build();
+        });
+        label.append(inp); holder.append(label);
+        continue;
+      }
       const sel = document.createElement('select');
-      for (const v of p.values) {
+      for (const v of p.values ?? []) {
         const o = document.createElement('option');
         o.value = String(v); o.textContent = String(v);
         if (v === p.initial) o.selected = true;
