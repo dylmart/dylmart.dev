@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 9 published sims', async ({ page }) => {
+  test('index lists exactly the 10 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(9);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(10); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -221,6 +221,32 @@ test.describe('gravitation-2point (ported to Canvas2D)', () => {
   });
 });
 
+test.describe('gravitation-2point-gs (WebGL original, vendored textures)', () => {
+  test('glowscript sim boots on click', async ({ page }) => {
+    await page.goto('/projects/sims/gravitation-2point-gs/');
+    await expect(page.locator('#glowscript, .glowscript')).toHaveCount(0); // nothing heavy pre-click
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('booting the sim makes no request to a non-local host (planet textures are vendored)', async ({ page }) => {
+    await page.goto('/projects/sims/gravitation-2point-gs/');
+    const externalRequests: string[] = [];
+    page.on('request', (req) => {
+      const host = new URL(req.url()).hostname;
+      if (host !== '127.0.0.1' && host !== 'localhost') externalRequests.push(req.url());
+    });
+
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+    // Textures load asynchronously as the sim boots (scene.waitfor("textures"));
+    // give them a moment to fire after the canvas itself appears.
+    await page.waitForTimeout(1000);
+
+    expect(externalRequests).toEqual([]);
+  });
+});
+
 test.describe('rope-oscillations-sim (ported to Canvas2D)', () => {
   test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
     const errors: string[] = [];
@@ -297,7 +323,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });

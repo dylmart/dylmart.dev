@@ -17,3 +17,10 @@ curl -fsSL "$RAW/LICENSE.txt"                            -o "$DEST/LICENSE.txt"
 mkdir -p vendor
 curl -fsSL "$RAW/package/RScompiler.3.2.min.js"          -o "vendor/RScompiler.3.2.min.js"
 ls -la "$DEST" vendor
+
+# Vendor the planet textures used by gravitation-2point-gs (source.py stays
+# verbatim with its original imgur URLs; compile-sims.mjs rewrites the
+# compiled output to point at these local copies instead).
+mkdir -p public/sim-textures
+curl -fsSL https://i.imgur.com/ns7Q3s6.jpeg -o public/sim-textures/planet-a.jpeg
+curl -fsSL https://i.imgur.com/7XyId7s.jpeg -o public/sim-textures/planet-b.jpeg
