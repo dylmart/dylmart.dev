@@ -209,7 +209,7 @@ const factory = (p: Record<string, number>): Sim2D => {
 
       state.balls.forEach((b, i) => {
         const { px, py } = worldToPx(b.x, b.y, view);
-        ctx.fillStyle = i === 0 ? view.css('--text') : view.css(i % 2 === 1 ? '--accent' : '--accent-cool');
+        ctx.fillStyle = i === 0 ? view.css('--sim-canvas-fg') : view.css(i % 2 === 1 ? '--accent' : '--accent-cool');
         ctx.beginPath();
         ctx.arc(px, py, BALL_R * scale, 0, Math.PI * 2);
         ctx.fill();

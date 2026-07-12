@@ -175,7 +175,7 @@ const factory = (p: Record<string, number>): Sim2D => {
       ctx.fillRect(block1Px - blockSize / 2, floorY - blockSize, blockSize, blockSize);
 
       ctx.font = '12px "Space Mono", monospace';
-      ctx.fillStyle = view.css('--text');
+      ctx.fillStyle = view.css('--sim-canvas-fg');
       ctx.fillText(`collisions: ${state.collisions}`, 10, 18);
       ctx.fillStyle = view.css('--text-dim');
       ctx.fillText(`m1 = 1, m2 = ${state.m2.toLocaleString()}`, 10, 34);
