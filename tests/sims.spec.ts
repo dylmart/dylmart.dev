@@ -176,6 +176,22 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await page.waitForTimeout(700);
     expect(await snap()).not.toBe(a); // pixels changed => sim is running
   });
+
+  test('changing a launch param (v0y) rebuilds the sim and it still animates', async ({ page }) => {
+    await page.goto('/projects/sims/2d-motion/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const selects = page.locator('.sim-params select');
+    await expect(selects).toHaveCount(3); // v0x, v0y, ay
+    await selects.nth(1).selectOption('8'); // v0y: 5 -> 8
+    // a param change pauses and rebuilds the sim (fresh instance), so it
+    // needs an explicit Play click to resume animating.
+    await page.locator('[data-act="toggle"]').click();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => sim is running with the new param
+  });
 });
 
 test.describe('gravitation-2point (ported to Canvas2D)', () => {
