@@ -26,7 +26,9 @@ const source = await readFile(`src/content/sims/${sim.id}/source.py`, 'utf8');
       <SimGlowScript slug={sim.id} thumbSrc={`/sim-thumbs/${sim.id}.png`} title={sim.data.title} />
     )}
     {sim.data.render === 'canvas2d' && (
-      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', '2d-motion', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
+      {/* 2d-motion deliberately omitted: Dylan cut its velocity graph (the sim
+          still emits plot points into its capped queue; nothing drains them) */}
+      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
     )}
 
     <details class="sim-source">

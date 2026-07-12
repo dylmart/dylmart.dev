@@ -164,6 +164,7 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await expect(page.locator('[data-act="toggle"]')).toBeVisible();
     await expect(page.locator('[data-act="reset"]')).toBeVisible();
     await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // graph cut per Dylan
     expect(errors).toEqual([]);
   });
 
