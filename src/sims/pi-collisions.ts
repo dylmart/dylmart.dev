@@ -80,14 +80,14 @@ function stepOnce(s: State): { collided: boolean } {
   if (Math.abs(s.x1 - s.x2) <= CONTACT_DIST) {
     s.v1 = ((M1 - s.m2) / (M1 + s.m2)) * b1vx + ((2 * s.m2) / (M1 + s.m2)) * b2vx;
     s.v2 = ((s.m2 - M1) / (M1 + s.m2)) * b2vx + ((2 * M1) / (M1 + s.m2)) * b1vx;
-    if (s.v1 !== 0) pushPlotPoint(s, s.m2 * b2vx, M1 * b1vx);
+    if (s.v1 !== 0) pushPlotPoint(s, Math.sqrt(s.m2) * b2vx, Math.sqrt(M1) * b1vx);
     s.collisions++;
     collided = true;
   }
 
   if (s.x1 <= WALL_TRIGGER) {
     s.v1 = -s.v1;
-    if (s.v1 !== 0) pushPlotPoint(s, s.m2 * b2vx, M1 * b1vx);
+    if (s.v1 !== 0) pushPlotPoint(s, Math.sqrt(s.m2) * b2vx, Math.sqrt(M1) * b1vx);
     s.collisions++;
     collided = true;
   }
@@ -120,7 +120,13 @@ const factory = (p: Record<string, number>): Sim2D => {
 
   const sim = {
     dt: HOST_DT,
-    plotLabel: 'momentum circle (m2·v2, m1·v1)',
+    // Display deviation from source.py (Dylan's request): the original plots raw
+    // momenta (m2·v2, m1·v1), which is an ellipse in phase space. Plotting
+    // (√m2·v2, √m1·v1) instead makes energy conservation the literal circle
+    // equation, and plotEqualAspect renders it without stretching. Collision
+    // physics and plot timing are unchanged.
+    plotLabel: 'energy circle (√m2·v2, √m1·v1)',
+    plotEqualAspect: true,
     state,
 
     advance(dt: number) {

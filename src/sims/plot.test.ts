@@ -12,6 +12,37 @@ describe('plot scaling', () => {
     const p = s.toPx({ x: 3, y: 3 });
     expect(Number.isFinite(p.px) && Number.isFinite(p.py)).toBe(true);
   });
+  it('equalAspect uses one scale for both axes so circles stay circular', () => {
+    // Points on a radius-5 circle in data space, drawn into a wide 200x100 box.
+    const circle = [
+      { x: -5, y: 0 }, { x: 5, y: 0 }, { x: 0, y: -5 }, { x: 0, y: 5 },
+    ];
+    const s = scaleToExtent(circle, 200, 100, 10, true);
+    const right = s.toPx({ x: 5, y: 0 });
+    const left = s.toPx({ x: -5, y: 0 });
+    const top = s.toPx({ x: 0, y: 5 });
+    const bottom = s.toPx({ x: 0, y: -5 });
+    // Equal px-per-unit both axes: horizontal and vertical diameters render equal.
+    expect(right.px - left.px).toBeCloseTo(bottom.py - top.py, 9);
+    // Centered in the box, y flipped.
+    expect((right.px + left.px) / 2).toBeCloseTo(100, 9);
+    expect((top.py + bottom.py) / 2).toBeCloseTo(50, 9);
+    expect(top.py).toBeLessThan(bottom.py);
+    // Constrained by the short (height) dimension: 10 data units into 80px.
+    expect(bottom.py - top.py).toBeCloseTo(80, 9);
+  });
+  it('without equalAspect the same circle stretches to fill the box (regression contrast)', () => {
+    const circle = [
+      { x: -5, y: 0 }, { x: 5, y: 0 }, { x: 0, y: -5 }, { x: 0, y: 5 },
+    ];
+    const s = scaleToExtent(circle, 200, 100, 10);
+    const right = s.toPx({ x: 5, y: 0 });
+    const left = s.toPx({ x: -5, y: 0 });
+    const top = s.toPx({ x: 0, y: 5 });
+    const bottom = s.toPx({ x: 0, y: -5 });
+    expect(right.px - left.px).toBe(180);   // stretched wide
+    expect(bottom.py - top.py).toBe(80);    // vs squat: the ellipse Dylan saw
+  });
 });
 
 describe('plot buffer cap (appendCapped)', () => {

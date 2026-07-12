@@ -12,5 +12,7 @@ export interface Sim2D {
   /** physics step size in seconds, and how many real seconds one sim second takes */
   readonly dt: number;
   readonly plotLabel?: string;
+  /** render the plot with equal x/y pixel scale (circles stay circular) */
+  readonly plotEqualAspect?: boolean;
 }
 export type SimFactory = (params: Record<string, number>) => Sim2D;

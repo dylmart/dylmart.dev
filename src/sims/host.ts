@@ -28,7 +28,9 @@ export function mountSim(
   canvas.width = cssW * dpr; canvas.height = cssH * dpr;
   ctx.scale(dpr, dpr);
   const view: SimView = { w: cssW, h: cssH, css };
-  const plot = plotCanvas ? createPlot(plotCanvas, { title: sim.plotLabel ?? 'plot' }) : null;
+  const plot = plotCanvas
+    ? createPlot(plotCanvas, { title: sim.plotLabel ?? 'plot', equalAspect: sim.plotEqualAspect })
+    : null;
 
   const stepper = new FixedStepper(sim.dt, () => sim.advance(sim.dt));
   let running = false, last = 0, raf = 0;

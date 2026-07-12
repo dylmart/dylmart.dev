@@ -14,7 +14,7 @@ export function appendCapped<T>(buf: T[], additions: readonly T[], cap: number):
   return buf;
 }
 
-export function scaleToExtent(points: PlotPoint[], w: number, h: number, pad: number) {
+export function scaleToExtent(points: PlotPoint[], w: number, h: number, pad: number, equalAspect = false) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) {
     if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
@@ -22,6 +22,21 @@ export function scaleToExtent(points: PlotPoint[], w: number, h: number, pad: nu
   }
   const spanX = maxX - minX || 1;
   const spanY = maxY - minY || 1;
+  if (equalAspect) {
+    // One px-per-unit scale for both axes, data centered in the box: a circle
+    // in data space renders as a circle on screen (letterboxed, not stretched).
+    const scale = Math.min((w - 2 * pad) / spanX, (h - 2 * pad) / spanY);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    return {
+      toPx(p: PlotPoint) {
+        return {
+          px: w / 2 + (p.x - cx) * scale,
+          py: h / 2 - (p.y - cy) * scale,
+        };
+      },
+    };
+  }
   return {
     toPx(p: PlotPoint) {
       return {
@@ -32,7 +47,7 @@ export function scaleToExtent(points: PlotPoint[], w: number, h: number, pad: nu
   };
 }
 
-export function createPlot(canvas: HTMLCanvasElement, opts: { title: string }) {
+export function createPlot(canvas: HTMLCanvasElement, opts: { title: string; equalAspect?: boolean }) {
   const ctx = canvas.getContext('2d')!;
   const pts: PlotPoint[] = [];
   const css = (n: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -45,7 +60,7 @@ export function createPlot(canvas: HTMLCanvasElement, opts: { title: string }) {
     ctx.font = '10px "Space Mono", monospace';
     ctx.fillText(opts.title.toUpperCase(), 8, 14);
     if (pts.length < 2) return;
-    const s = scaleToExtent(pts, w, h, 18);
+    const s = scaleToExtent(pts, w, h, 18, opts.equalAspect ?? false);
     ctx.strokeStyle = css('--accent'); ctx.lineWidth = 1.5;
     ctx.beginPath();
     pts.forEach((p, i) => {
