@@ -43,7 +43,7 @@ import { SITE } from '../site.config';
   .planet {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: 58%; aspect-ratio: 1; border-radius: 50%;
-    background: radial-gradient(circle at 34% 30%, var(--accent-bright), var(--accent) 55%, #8f1d14);
+    background: radial-gradient(circle at 34% 30%, var(--accent-bright), var(--accent) 55%, color-mix(in srgb, var(--accent) 45%, black));
     box-shadow: 0 0 0 12px color-mix(in srgb, var(--accent) 8%, transparent);
   }
   /* The ring IS the orbit line: a tilted ellipse the dot travels along.
@@ -65,7 +65,7 @@ import { SITE } from '../site.config';
   .orbit-spin b {
     position: absolute; top: 0; left: 50%; width: 9px; height: 9px;
     margin: -4.5px 0 0 -4.5px; border-radius: 50%;
-    background: var(--text); box-shadow: 0 0 10px var(--text);
+    background: var(--accent-cool); box-shadow: 0 0 10px var(--accent-cool);
     /* Counter-rotate + un-squash so the dot stays round at every angle.
        Base transform keeps it round when animations are off (reduced motion). */
     transform: scaleY(3.846);

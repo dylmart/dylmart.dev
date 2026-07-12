@@ -1,8 +1,11 @@
-/* ---------- worm palette tokens (spec §5) ---------- */
+/* ---------- palette tokens: sunset orange + ice blue (2026-07-11 redesign;
+   layout/type unchanged from the worm-era spec §5) ---------- */
 :root {
   --bg: #f0ece3; --bg-2: #f0ece3; --surface: #faf7f0;
   --text: #17171e; --text-dim: #5c584e;
-  --accent: #e03c31; --accent-bright: #c2281e; --neutral: #9a958a;
+  --accent: #ea580c; --accent-bright: #c2410c; --neutral: #9a958a;
+  /* cool-blue secondary: hero moon, code strings/links, cool highlights */
+  --accent-cool: #0284c7; --accent-cool-bright: #0369a1;
   /* Fixed GlowScript render background — matches the sim runtime's own scene
      background (not a theme color), so it's defined once here and shared by
      both themes rather than overridden in the dark-mode block below. */
@@ -15,25 +18,27 @@
   --astro-code-foreground: var(--text);
   --astro-code-background: var(--surface);
   --astro-code-token-comment: var(--text-dim);
-  --astro-code-token-string: var(--text);
-  --astro-code-token-string-expression: var(--text);
+  --astro-code-token-string: var(--accent-cool);
+  --astro-code-token-string-expression: var(--accent-cool);
   --astro-code-token-constant: var(--neutral);
   --astro-code-token-keyword: var(--accent);
   --astro-code-token-parameter: var(--text-dim);
   --astro-code-token-function: var(--accent-bright);
   --astro-code-token-punctuation: var(--neutral);
-  --astro-code-token-link: var(--accent);
+  --astro-code-token-link: var(--accent-cool);
 }
 :root[data-theme='dark'] {
   --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
   --text: #f0ece3; --text-dim: #9a958a;
-  --accent: #e03c31; --accent-bright: #ff5a3c;
+  --accent: #f97316; --accent-bright: #fb923c;
+  --accent-cool: #38bdf8; --accent-cool-bright: #7dd3fc;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
     --text: #f0ece3; --text-dim: #9a958a;
-    --accent: #e03c31; --accent-bright: #ff5a3c;
+    --accent: #f97316; --accent-bright: #fb923c;
+    --accent-cool: #38bdf8; --accent-cool-bright: #7dd3fc;
     color-scheme: dark;
   }
 }
