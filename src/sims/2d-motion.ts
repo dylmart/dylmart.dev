@@ -1,5 +1,6 @@
 import type { Sim2D, SimView, SimPointerEvent } from './types';
 import type { ParamSpec } from './registry';
+import { drawArrow } from './draw';
 
 // ----- physics constants (mirrors src/content/sims/2d-motion/source.py) -----
 const AX = -3; // ax stays fixed: v0x, v0y, ay selects are enough interactive
@@ -117,28 +118,6 @@ function worldToPx(x: number, y: number, view: SimView): { px: number; py: numbe
   return { px, py };
 }
 
-function drawArrow(
-  ctx: CanvasRenderingContext2D,
-  from: { px: number; py: number },
-  to: { px: number; py: number },
-  color: string,
-): void {
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(from.px, from.py);
-  ctx.lineTo(to.px, to.py);
-  ctx.stroke();
-  const angle = Math.atan2(to.py - from.py, to.px - from.px);
-  const headLen = 6;
-  ctx.beginPath();
-  ctx.moveTo(to.px, to.py);
-  ctx.lineTo(to.px - headLen * Math.cos(angle - Math.PI / 6), to.py - headLen * Math.sin(angle - Math.PI / 6));
-  ctx.moveTo(to.px, to.py);
-  ctx.lineTo(to.px - headLen * Math.cos(angle + Math.PI / 6), to.py - headLen * Math.sin(angle + Math.PI / 6));
-  ctx.stroke();
-}
-
 const factory = (p: Record<string, number>): Sim2D => {
   const a: Vec2 = { x: AX, y: p.ay ?? 4 };
   // Current launch velocity: starts from params, mutated in place by
@@ -241,11 +220,11 @@ const factory = (p: Record<string, number>): Sim2D => {
 
       // velocity arrow, in --neutral
       const velTip = worldToPx(state.pos.x + state.v.x * 0.2, state.pos.y + state.v.y * 0.2, view);
-      drawArrow(ctx, ballPx, velTip, view.css('--neutral'));
+      drawArrow(ctx, ballPx.px, ballPx.py, velTip.px, velTip.py, view.css('--neutral'), 2, 6);
 
       // acceleration vector, in --accent-cool, from the ball
       const accTip = worldToPx(state.pos.x + a.x * 0.3, state.pos.y + a.y * 0.3, view);
-      drawArrow(ctx, ballPx, accTip, view.css('--accent-cool'));
+      drawArrow(ctx, ballPx.px, ballPx.py, accTip.px, accTip.py, view.css('--accent-cool'), 2, 6);
 
       // live aim line while a drag-to-aim gesture is in progress
       if (drag) {
@@ -308,6 +287,14 @@ const factory = (p: Record<string, number>): Sim2D => {
         v0 = { x: aim.v0x, y: aim.v0y };
         state = makeState(v0);
         stateRegistry.set(sim, state);
+        return true;
+      }
+      if (ev.type === 'cancel') {
+        // Abort the in-progress aim gesture entirely: discard the pending
+        // drag without committing a new v0 or restarting the run (unlike
+        // 'up', which commits). Redraw so the aim line disappears.
+        if (!drag) return;
+        drag = null;
         return true;
       }
     },

@@ -1,6 +1,6 @@
 export interface SimView { w: number; h: number; css: (name: string) => string }
 export interface SimPointerEvent {
-  type: 'down' | 'move' | 'up';
+  type: 'down' | 'move' | 'up' | 'cancel';
   /** canvas CSS-pixel coords, origin top-left; sims map to world themselves */
   x: number; y: number;
   /** true while a button/touch is held */

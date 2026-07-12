@@ -1,4 +1,5 @@
 import type { Sim2D, SimView, SimPointerEvent } from './types';
+import { drawArrow } from './draw';
 
 // ----- physics constants (mirrors src/content/sims/electric-field-array/source.py) -----
 const K = 8.99e9;
@@ -105,8 +106,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
       // 121 grid arrows: shaft length = clamped |E| (<= 1 grid cell) as a
       // world-space offset from the grid point, so it never overlaps its
       // neighbor's cell.
-      ctx.strokeStyle = view.css('--text-dim');
-      ctx.lineWidth = 1;
+      const dimColor = view.css('--text-dim');
       for (let i = 0; i < GRID_COUNT; i++) {
         const gx = GRID_MIN + i * GRID_STEP;
         for (let j = 0; j < GRID_COUNT; j++) {
@@ -114,19 +114,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
           const E = clampField(fieldAt({ x: gx, y: gy }, state.charges), SAT_LEV);
           const from = worldToPx(gx, gy, view);
           const to = worldToPx(gx + E.x, gy + E.y, view);
-          ctx.beginPath();
-          ctx.moveTo(from.px, from.py);
-          ctx.lineTo(to.px, to.py);
-          ctx.stroke();
-          // small arrowhead
-          const angle = Math.atan2(to.py - from.py, to.px - from.px);
-          const headLen = 4;
-          ctx.beginPath();
-          ctx.moveTo(to.px, to.py);
-          ctx.lineTo(to.px - headLen * Math.cos(angle - Math.PI / 6), to.py - headLen * Math.sin(angle - Math.PI / 6));
-          ctx.moveTo(to.px, to.py);
-          ctx.lineTo(to.px - headLen * Math.cos(angle + Math.PI / 6), to.py - headLen * Math.sin(angle + Math.PI / 6));
-          ctx.stroke();
+          drawArrow(ctx, from.px, from.py, to.px, to.py, dimColor, 1, 4);
         }
       }
 
@@ -181,7 +169,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
         c.y = world.y;
         return true;
       }
-      if (ev.type === 'up') {
+      if (ev.type === 'up' || ev.type === 'cancel') {
         if (state.draggedIndex === null) return;
         state.draggedIndex = null;
         return true;
