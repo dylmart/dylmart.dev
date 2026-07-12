@@ -153,6 +153,9 @@ const factory = (_p: Record<string, number>): Sim2D => {
       stateRegistry.set(sim, state);
     },
 
+    // Extension beyond source.py (Dylan's request): the original renders a
+    // fixed charge layout; here the charges are draggable and the field
+    // arrows recompute live. The field math itself stays verbatim.
     onPointer(ev: SimPointerEvent, view: SimView) {
       if (ev.type === 'down') {
         let closestIdx: number | null = null;
