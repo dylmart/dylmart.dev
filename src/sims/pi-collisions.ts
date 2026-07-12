@@ -103,7 +103,7 @@ export function runToCompletion(m2: number): number {
 }
 
 export const params: ParamSpec[] = [
-  { key: 'massExp', label: 'm2 = 100^n, n =', values: [1, 2, 3, 4], initial: 2 },
+  { key: 'massExp', label: 'm2 = 100^n, n =', values: [1, 2, 3], initial: 2 },
 ];
 
 function worldToPx(x: number, worldMin: number, worldMax: number, w: number): number {

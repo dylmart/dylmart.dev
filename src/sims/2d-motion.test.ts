@@ -8,7 +8,7 @@ describe('2d.motion physics', () => {
     const { pos, t } = stateOf(sim);
     const n = 500, dt = 0.01;
     expect(t).toBeCloseTo(5, 9);
-    expect(pos.x).toBeCloseTo(closedFormPos(0, 3, -3, n, dt), 9);
+    expect(pos.x).toBeCloseTo(closedFormPos(0, 3, 0, n, dt), 9); // ax = 0: y-aligned acceleration (Dylan)
     expect(pos.y).toBeCloseTo(closedFormPos(0, 5, 4, n, dt), 9);
   });
   it('stops at t=5', () => {

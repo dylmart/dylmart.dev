@@ -3,8 +3,9 @@ import type { ParamSpec } from './registry';
 import { drawArrow } from './draw';
 
 // ----- physics constants (mirrors src/content/sims/2d-motion/source.py) -----
-const AX = -3; // ax stays fixed: v0x, v0y, ay selects are enough interactive
-               // launch-parameter surface; a fourth select for ax isn't worth it.
+const AX = 0; // Dylan's request: acceleration is always aligned with the y
+              // axis (the original program's a=(-3,4) diagonal is gone; only
+              // the ay select varies the acceleration now).
 const DT = 0.01;
 const T_END = 5;
 const N_END = Math.round(T_END / DT); // 500 steps; counting steps (not accumulating t) avoids float drift
