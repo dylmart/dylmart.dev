@@ -5,12 +5,12 @@ import { mulberry32 } from './rng';
 
 // ----- flocking constants (classic Reynolds boids, tuned for a murmuration:
 // dense flock, alignment-dominant weights, narrow field of view) -----
-const N = 220;
+const N = 500;
 const DT = 1 / 60;
 const WORLD = 100; // [0, WORLD) square, toroidal wrap
-const VIEW_R = 13; // cohesion/alignment neighbor radius (+30% over the brief's 10: at 10, separate
-                    // clusters lost sight of each other entirely and froze as disconnected pods
-                    // instead of one flowing sheet — see boids-upgrade-report.md)
+const VIEW_R = 13; // cohesion/alignment neighbor radius (+30% over the upgrade brief's 10: at 10,
+                    // separate clusters lost sight of each other entirely and froze as disconnected
+                    // pods instead of one flowing sheet — see boids-upgrade-report.md)
 const SEP_R = 2.5; // separation radius (subset of the VIEW_R neighbors)
 const MIN_SPEED = 8; // hard floor post-clamp; a stalled boid looks dead
 const MAX_SPEED = 24;
@@ -26,15 +26,16 @@ const INIT_SPEED = MAX_SPEED * 0.5;
 const WANDER_FREQ = 0.9;
 const WANDER_MAG = 0.15 * MAX_FORCE;
 
-// Autonomous hawk: spawns every HAWK_PERIOD sim-seconds and flies a straight
-// chord across the world at HAWK_SPEED, despawning after HAWK_FLIGHT
-// seconds. Chord geometry (entry point + heading) is drawn from the seeded
-// rng at init only and cycled through by flight index, so stepFlock stays
-// rng-free and the whole thing is deterministic per seed.
-const HAWK_PERIOD = 9;
-const HAWK_FLIGHT = 4;
-const HAWK_SPEED = 1.6 * MAX_SPEED;
-const HAWK_CHORD_COUNT = 16;
+// Persistent hawk: always on screen, cruising at constant speed. Its heading
+// turns by a sum of two incommensurate sinusoids (seeded phases, time from
+// state.t — organic-looking but fully deterministic, no rng in stepFlock),
+// blended with a weak pull toward the flock centroid so it menaces the birds
+// instead of wandering empty corners. Boids flee it exactly like the pointer
+// predator (same FLEE_R/W_FLEE, forces summed).
+const HAWK_SPEED = 1.28 * MAX_SPEED; // 0.8 x the old strafe speed (1.6 x MAX_SPEED)
+const HAWK_TURN_A1 = 1.4, HAWK_TURN_W1 = 0.53; // rad/s amplitude, rad/s frequency
+const HAWK_TURN_A2 = 0.9, HAWK_TURN_W2 = 1.31; // incommensurate with W1 so the path never loops
+const HAWK_CENTROID_PULL = 0.3; // blend weight of the toward-flock unit vector before normalizing
 
 const BOID_WID_RATIO = 2 / 3; // width/length aspect for the boid triangle
 const HAWK_LEN = 14;
@@ -50,15 +51,15 @@ export const params: ParamSpec[] = [
 interface Vec2 { x: number; y: number }
 interface Boid { x: number; y: number; vx: number; vy: number; phase: number }
 interface Predator { x: number; y: number }
-interface Hawk { x: number; y: number; vx: number; vy: number }
-interface Chord { entry: Vec2; heading: Vec2 }
+interface Hawk { x: number; y: number; vx: number; vy: number; theta: number }
 
 interface State {
   boids: Boid[];
   predator: Predator | null;
   t: number;
-  hawkChords: Chord[];
-  hawk: Hawk | null;
+  hawk: Hawk;
+  hawkPhase1: number;
+  hawkPhase2: number;
 }
 
 function wrapCoord(v: number): number {
@@ -95,29 +96,31 @@ export function perceives(a: Boid, b: Boid): boolean {
   return dot > Math.cos((150 * Math.PI) / 180);
 }
 
-function computeHawk(state: Pick<State, 't' | 'hawkChords'>): Hawk | null {
-  const { t, hawkChords } = state;
-  if (hawkChords.length === 0) return null;
-  // The flock gets one calm HAWK_PERIOD before the first strafe: at t=0 the
-  // k=0 window would otherwise put a hawk on screen the moment the sim loads.
-  if (t < HAWK_PERIOD) return null;
-  const k = Math.floor(t / HAWK_PERIOD);
-  const since = t - k * HAWK_PERIOD;
-  if (since < 0 || since >= HAWK_FLIGHT) return null;
-  const idx = ((k % hawkChords.length) + hawkChords.length) % hawkChords.length;
-  const chord = hawkChords[idx]!;
-  return {
-    x: wrapCoord(chord.entry.x + chord.heading.x * HAWK_SPEED * since),
-    y: wrapCoord(chord.entry.y + chord.heading.y * HAWK_SPEED * since),
-    vx: chord.heading.x * HAWK_SPEED,
-    vy: chord.heading.y * HAWK_SPEED,
-  };
+// ----- uniform spatial hash grid (toroidal) -----
+// At N=500 the naive all-pairs scan is ~250k pair checks per step; bucketing
+// boids into cells of >= VIEW_R and scanning the 3x3 toroidal neighborhood
+// cuts that to ~N x (local density). GRID_DIM must be >= 3 or the wrapped
+// 3x3 scan would visit the same cell twice (WORLD=100 / VIEW_R=13 gives 7).
+// Build and iteration order are fully index-ordered, so results are
+// deterministic and the same-seed-same-result pin holds exactly.
+const GRID_DIM = Math.floor(WORLD / VIEW_R); // cells per axis; cell size WORLD/GRID_DIM >= VIEW_R
+const CELL = WORLD / GRID_DIM;
+
+function buildGrid(boids: Boid[]): number[][] {
+  const cells: number[][] = Array.from({ length: GRID_DIM * GRID_DIM }, () => []);
+  for (let i = 0; i < boids.length; i++) {
+    const b = boids[i]!;
+    const cx = Math.min(GRID_DIM - 1, Math.floor(b.x / CELL));
+    const cy = Math.min(GRID_DIM - 1, Math.floor(b.y / CELL));
+    cells[cy * GRID_DIM + cx]!.push(i);
+  }
+  return cells;
 }
 
 // All randomness flows through mulberry32(seed): per boid x, y, heading,
-// wander phase (in that order), then HAWK_CHORD_COUNT chords (direction,
-// lateral offset), all in a fixed order, so the same seed always yields the
-// same flock and the same hawk flight path.
+// wander phase (in that order), then the hawk's x, y, heading, and two turn
+// phases, all in a fixed order, so the same seed always yields the same
+// flock and the same hawk flight.
 function makeState(seed: number): State {
   const rand = mulberry32(seed);
   const boids: Boid[] = [];
@@ -129,23 +132,20 @@ function makeState(seed: number): State {
     boids.push({ x, y, vx: Math.cos(angle) * INIT_SPEED, vy: Math.sin(angle) * INIT_SPEED, phase });
   }
 
-  const hawkChords: Chord[] = [];
-  for (let i = 0; i < HAWK_CHORD_COUNT; i++) {
-    const dir = rand() * Math.PI * 2;
-    const offset = (rand() - 0.5) * WORLD;
-    const perp = dir + Math.PI / 2;
-    const cx = WORLD / 2 + Math.cos(perp) * offset;
-    const cy = WORLD / 2 + Math.sin(perp) * offset;
-    const back = WORLD * 0.75; // start well outside the world so the chord crosses it
-    hawkChords.push({
-      entry: { x: cx - Math.cos(dir) * back, y: cy - Math.sin(dir) * back },
-      heading: { x: Math.cos(dir), y: Math.sin(dir) },
-    });
-  }
+  const hx = rand() * WORLD;
+  const hy = rand() * WORLD;
+  const theta = rand() * Math.PI * 2;
+  const hawk: Hawk = {
+    x: hx,
+    y: hy,
+    vx: Math.cos(theta) * HAWK_SPEED,
+    vy: Math.sin(theta) * HAWK_SPEED,
+    theta,
+  };
+  const hawkPhase1 = rand() * Math.PI * 2;
+  const hawkPhase2 = rand() * Math.PI * 2;
 
-  const state: State = { boids, predator: null, t: 0, hawkChords, hawk: null };
-  state.hawk = computeHawk(state);
-  return state;
+  return { boids, predator: null, t: 0, hawk, hawkPhase1, hawkPhase2 };
 }
 
 function clampMag(v: Vec2, max: number): Vec2 {
@@ -183,30 +183,59 @@ function fleeForce(self: Boid, point: Vec2 | null, vel: Vec2): Vec2 {
  * Combined weighted steering force on one boid: cohesion (toward the average
  * position of VIEW_R neighbors), alignment (toward their average velocity),
  * separation (away from SEP_R-close neighbors, closer = stronger), flee
- * (away from the pointer predator and/or the hawk, summed — both can be
- * active at once), and wander (a slow, deterministic per-boid drift so the
- * flock never looks locked to a rigid vector field). Neighbors for
- * cohesion/alignment/separation are restricted to those inside `self`'s
- * field of view (perceives). Each rule term is independently force-clamped
- * by steerToward before the weights are applied.
+ * (away from the pointer predator and/or the hawk, summed — both act at
+ * once), and wander (a slow, deterministic per-boid drift so the flock never
+ * looks locked to a rigid vector field). Neighbors come from the spatial
+ * grid's 3x3 toroidal neighborhood and are restricted to those inside
+ * `self`'s field of view (perceives). Each rule term is independently
+ * force-clamped by steerToward before the weights are applied.
  */
-function computeSteer(self: Boid, boids: Boid[], predator: Predator | null, hawk: Hawk | null, t: number): Vec2 {
+function computeSteer(
+  selfIndex: number,
+  boids: Boid[],
+  cells: number[][],
+  predator: Predator | null,
+  hawk: Hawk,
+  t: number,
+): Vec2 {
+  const self = boids[selfIndex]!;
   const vel = { x: self.vx, y: self.vy };
   let cohX = 0, cohY = 0, aliX = 0, aliY = 0, n = 0;
   let sepX = 0, sepY = 0;
 
-  for (const other of boids) {
-    if (other === self) continue;
-    const dx = wrappedDelta(other.x, self.x);
-    const dy = wrappedDelta(other.y, self.y);
-    const dist = Math.hypot(dx, dy);
-    if (dist < VIEW_R && perceives(self, other)) {
-      cohX += dx; cohY += dy;
-      aliX += other.vx; aliY += other.vy;
-      n++;
-      if (dist < SEP_R && dist > 1e-9) {
-        sepX -= dx / dist;
-        sepY -= dy / dist;
+  // Precompute self's unit heading once; the loop below applies the exact
+  // same field-of-view rule as the exported `perceives` (which stays the
+  // single source of truth for the tests) without recomputing the heading
+  // and displacement per pair.
+  const selfSpeed = Math.hypot(self.vx, self.vy);
+  const seesAll = selfSpeed < 1e-9;
+  const hx = seesAll ? 0 : self.vx / selfSpeed;
+  const hy = seesAll ? 0 : self.vy / selfSpeed;
+  const fovCos = Math.cos((150 * Math.PI) / 180);
+
+  const cx = Math.min(GRID_DIM - 1, Math.floor(self.x / CELL));
+  const cy = Math.min(GRID_DIM - 1, Math.floor(self.y / CELL));
+  for (let oy = -1; oy <= 1; oy++) {
+    const row = ((cy + oy + GRID_DIM) % GRID_DIM) * GRID_DIM;
+    for (let ox = -1; ox <= 1; ox++) {
+      const cell = cells[row + ((cx + ox + GRID_DIM) % GRID_DIM)]!;
+      for (const j of cell) {
+        if (j === selfIndex) continue;
+        const other = boids[j]!;
+        const dx = wrappedDelta(other.x, self.x);
+        const dy = wrappedDelta(other.y, self.y);
+        const dist = Math.hypot(dx, dy);
+        const inView =
+          seesAll || dist < 1e-9 || (dx / dist) * hx + (dy / dist) * hy > fovCos;
+        if (dist < VIEW_R && inView) {
+          cohX += dx; cohY += dy;
+          aliX += other.vx; aliY += other.vy;
+          n++;
+          if (dist < SEP_R && dist > 1e-9) {
+            sepX -= dx / dist;
+            sepY -= dy / dist;
+          }
+        }
       }
     }
   }
@@ -230,16 +259,18 @@ function computeSteer(self: Boid, boids: Boid[], predator: Predator | null, hawk
 
 /**
  * One physics step, pure aside from mutating `state` in place (same
- * convention as every other sim's stepOnce in this codebase): compute every
- * boid's steering from the pre-step flock (order-independent) plus the
- * pre-step hawk, integrate velocity (steer*DT), clamp speed into
- * [MIN_SPEED, MAX_SPEED], wrap position toroidally into [0, WORLD), then
- * advance sim time and recompute the hawk for the new instant. No rng, no
- * Date — time comes solely from state.t.
+ * convention as every other sim's stepOnce in this codebase): bucket the
+ * flock into the spatial grid, compute every boid's steering from the
+ * pre-step flock (order-independent) plus the pre-step hawk, integrate
+ * velocity (steer*DT), clamp speed into [MIN_SPEED, MAX_SPEED], wrap
+ * position toroidally into [0, WORLD), then advance the hawk (constant
+ * cruise speed, sinusoid-turned heading blended with a weak centroid pull)
+ * and sim time. No rng, no Date — time comes solely from state.t.
  */
 export function stepFlock(state: State): void {
   const { boids, predator, hawk, t } = state;
-  const steers = boids.map((b) => computeSteer(b, boids, predator, hawk, t));
+  const cells = buildGrid(boids);
+  const steers = boids.map((_, i) => computeSteer(i, boids, cells, predator, hawk, t));
   boids.forEach((b, i) => {
     const steer = steers[i]!;
     b.vx += steer.x * DT;
@@ -267,8 +298,37 @@ export function stepFlock(state: State): void {
     b.x = wrapCoord(b.x + b.vx * DT);
     b.y = wrapCoord(b.y + b.vy * DT);
   });
+
+  // Hawk: turn the heading by two incommensurate sinusoids of sim time, then
+  // blend in a weak unit pull toward the flock centroid (mean wrapped
+  // displacement, so the pull is torus-correct) and renormalize to constant
+  // cruise speed. The blended direction's magnitude is at least
+  // 1 - HAWK_CENTROID_PULL > 0, so the normalization never divides by zero.
+  const turn =
+    HAWK_TURN_A1 * Math.sin(HAWK_TURN_W1 * t + state.hawkPhase1) +
+    HAWK_TURN_A2 * Math.sin(HAWK_TURN_W2 * t + state.hawkPhase2);
+  hawk.theta += turn * DT;
+  let dirX = Math.cos(hawk.theta);
+  let dirY = Math.sin(hawk.theta);
+  if (boids.length > 0) {
+    let mx = 0, my = 0;
+    for (const b of boids) {
+      mx += wrappedDelta(b.x, hawk.x);
+      my += wrappedDelta(b.y, hawk.y);
+    }
+    const md = Math.hypot(mx, my);
+    if (md > 1e-9) {
+      dirX += HAWK_CENTROID_PULL * (mx / md);
+      dirY += HAWK_CENTROID_PULL * (my / md);
+    }
+  }
+  const dm = Math.hypot(dirX, dirY);
+  hawk.vx = (dirX / dm) * HAWK_SPEED;
+  hawk.vy = (dirY / dm) * HAWK_SPEED;
+  hawk.x = wrapCoord(hawk.x + hawk.vx * DT);
+  hawk.y = wrapCoord(hawk.y + hawk.vy * DT);
+
   state.t += DT;
-  state.hawk = computeHawk(state);
 }
 
 // Maps a live Sim2D instance to its internal flock state, without putting
@@ -276,13 +336,13 @@ export function stepFlock(state: State): void {
 const stateRegistry = new WeakMap<Sim2D, State>();
 
 /** Test hook: exposes a snapshot of the internal flock state of a sim built by the default factory. */
-export function flockState(sim: Sim2D): { boids: Boid[]; predator: Predator | null; hawk: Hawk | null } {
+export function flockState(sim: Sim2D): { boids: Boid[]; predator: Predator | null; hawk: Hawk } {
   const s = stateRegistry.get(sim);
   if (!s) throw new Error('flockState: not a boids-flocking sim instance');
   return {
     boids: s.boids.map((b) => ({ ...b })),
     predator: s.predator ? { ...s.predator } : null,
-    hawk: s.hawk ? { ...s.hawk } : null,
+    hawk: { ...s.hawk },
   };
 }
 
@@ -312,10 +372,6 @@ function drawBoid(ctx: CanvasRenderingContext2D, px: number, py: number, angle: 
 const factory = (p: Record<string, number>): Sim2D => {
   const seed = p.seed ?? 1337;
   let state = makeState(seed);
-  // First draw after mount (and every draw right after reset) must be an
-  // opaque clear so the motion-blur trail technique doesn't ghost the
-  // previous flock/reset artifacts into the new one.
-  let needsClear = true;
 
   const sim: Sim2D = {
     dt: DT,
@@ -326,17 +382,9 @@ const factory = (p: Record<string, number>): Sim2D => {
     },
 
     draw(ctx: CanvasRenderingContext2D, view: SimView) {
-      if (needsClear) {
-        ctx.fillStyle = view.css('--sim-canvas-bg');
-        ctx.fillRect(0, 0, view.w, view.h);
-        needsClear = false;
-      } else {
-        // Translucent black over the previous frame(s): the canvas persists
-        // between draws (host contract), so this reads as fading
-        // motion-blur trails rather than a hard-edged clear.
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-        ctx.fillRect(0, 0, view.w, view.h);
-      }
+      // Crisp birds, no streaks (Dylan cut the motion-blur trail): plain
+      // opaque clear every frame, same as every other canvas2d sim here.
+      ctx.clearRect(0, 0, view.w, view.h);
 
       const accentCool = view.css('--accent-cool');
       const accent = view.css('--accent');
@@ -348,7 +396,7 @@ const factory = (p: Record<string, number>): Sim2D => {
         drawBoid(ctx, px, py, angle, color, len);
       });
 
-      if (state.hawk) {
+      {
         const { px, py } = worldToPx(state.hawk.x, state.hawk.y, view);
         const angle = Math.atan2(state.hawk.vy, state.hawk.vx);
         drawBoid(ctx, px, py, angle, view.css('--accent-bright'), HAWK_LEN);
@@ -366,7 +414,6 @@ const factory = (p: Record<string, number>): Sim2D => {
     reset() {
       state = makeState(seed);
       stateRegistry.set(sim, state);
-      needsClear = true;
     },
 
     // The predator tracks the pointer while held (down starts it, move

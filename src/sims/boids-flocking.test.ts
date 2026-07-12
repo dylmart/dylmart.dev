@@ -6,7 +6,9 @@ const MAX_SPEED = 24;
 const DT = 1 / 60;
 
 describe('boids-flocking physics', () => {
-  it('is deterministic for a seed', () => {
+  // N=500 makes the multi-hundred-step pins CPU-heavy; they get explicit
+  // timeouts instead of vitest's 5s default.
+  it('is deterministic for a seed', { timeout: 30000 }, () => {
     const simA = createSim({});
     const simB = createSim({});
     for (let i = 0; i < 600; i++) {
@@ -26,19 +28,24 @@ describe('boids-flocking physics', () => {
     expect(flockState(simA)).not.toEqual(flockState(simB));
   });
 
-  it('respects the speed range every step (floor and clamp)', () => {
+  it('respects the speed range every step (floor and clamp)', { timeout: 30000 }, () => {
     const sim = createSim({});
     for (let i = 0; i < 600; i++) {
       sim.advance(sim.dt);
+      // same pin as asserting per boid, batched to two expects per step so
+      // 600 steps x 500 boids doesn't drown in expect() overhead.
+      let min = Infinity, max = -Infinity;
       for (const b of flockState(sim).boids) {
         const speed = Math.hypot(b.vx, b.vy);
-        expect(speed).toBeGreaterThanOrEqual(MIN_SPEED - 1e-9);
-        expect(speed).toBeLessThanOrEqual(MAX_SPEED + 1e-9);
+        if (speed < min) min = speed;
+        if (speed > max) max = speed;
       }
+      expect(min).toBeGreaterThanOrEqual(MIN_SPEED - 1e-9);
+      expect(max).toBeLessThanOrEqual(MAX_SPEED + 1e-9);
     }
   });
 
-  it('stays in the world (toroidal wrap)', () => {
+  it('stays in the world (toroidal wrap)', { timeout: 30000 }, () => {
     const sim = createSim({});
     for (let i = 0; i < 1000; i++) sim.advance(sim.dt);
     for (const b of flockState(sim).boids) {
@@ -101,8 +108,11 @@ describe('boids-flocking physics', () => {
       ],
       predator: null,
       t: 0,
-      hawkChords: [],
-      hawk: null,
+      // hawk parked far from the pair (>FLEE_R away) so its flee force is
+      // zero and the pin below isolates the separation direction.
+      hawk: { x: 60, y: 60, vx: 30.72, vy: 0, theta: 0 },
+      hawkPhase1: 0,
+      hawkPhase2: 0,
     });
     const a = mkState();
     const b = mkState();
@@ -135,23 +145,39 @@ describe('boids-flocking physics', () => {
     });
   });
 
-  describe('hawk cadence', () => {
-    it('gives the flock a calm first period (no hawk before t=9s)', () => {
+  describe('persistent hawk', () => {
+    it('is present at t=0.5 and still present at t=13.5 (never despawns)', { timeout: 30000 }, () => {
       const sim = createSim({});
-      const steps = Math.round(0.5 / DT);
-      for (let i = 0; i < steps; i++) sim.advance(sim.dt);
-      expect(flockState(sim).hawk).toBeNull();
-    });
-
-    it('is active mid-flight and gone after the flight window elapses', () => {
-      const sim = createSim({});
-      const steps95 = Math.round(9.5 / DT);
-      for (let i = 0; i < steps95; i++) sim.advance(sim.dt);
+      const steps05 = Math.round(0.5 / DT);
+      for (let i = 0; i < steps05; i++) sim.advance(sim.dt);
       expect(flockState(sim).hawk).not.toBeNull();
 
-      const steps135 = Math.round(13.5 / DT) - steps95;
+      const steps135 = Math.round(13.5 / DT) - steps05;
       for (let i = 0; i < steps135; i++) sim.advance(sim.dt);
-      expect(flockState(sim).hawk).toBeNull();
+      expect(flockState(sim).hawk).not.toBeNull();
+    });
+
+    it('stays inside the world after 1000 steps', { timeout: 30000 }, () => {
+      const sim = createSim({});
+      for (let i = 0; i < 1000; i++) sim.advance(sim.dt);
+      const { hawk } = flockState(sim);
+      expect(hawk.x).toBeGreaterThanOrEqual(0);
+      expect(hawk.x).toBeLessThan(100);
+      expect(hawk.y).toBeGreaterThanOrEqual(0);
+      expect(hawk.y).toBeLessThan(100);
+    });
+
+    it('cruises at constant speed (±1e-6) across steps', { timeout: 30000 }, () => {
+      const sim = createSim({});
+      const speedOf = () => {
+        const { hawk } = flockState(sim);
+        return Math.hypot(hawk.vx, hawk.vy);
+      };
+      const initial = speedOf();
+      for (let i = 0; i < 300; i++) {
+        sim.advance(sim.dt);
+        expect(Math.abs(speedOf() - initial)).toBeLessThan(1e-6);
+      }
     });
   });
 });
