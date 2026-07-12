@@ -10,4 +10,5 @@ export const registry: Record<string, () => Promise<{ default: SimFactory; param
   'yoyo-lab3': () => import('./yoyo-lab3'),
   'electric-field-array': () => import('./electric-field-array'),
   'orbit-sandbox': () => import('./orbit-sandbox'),
+  'boids-flocking': () => import('./boids-flocking'),
 };

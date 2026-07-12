@@ -512,8 +512,63 @@ test.describe('orbit-sandbox (native canvas2d)', () => {
   });
 });
 
+test.describe('boids-flocking (native canvas2d)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/boids-flocking/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim-params select')).toBeVisible(); // seed select
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('boids-flocking canvas animates', async ({ page }) => {
+    await page.goto('/projects/sims/boids-flocking/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => the flock is moving
+  });
+
+  test('a hold-and-move pointer gesture (predator drag) produces no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/boids-flocking/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Hold on the canvas center (spooking the flock is a visual effect only;
+    // flockState isn't reachable from Playwright, so this asserts the engine
+    // survives the gesture cleanly rather than pixel-diffing the predator).
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + 60, cy + 40, { steps: 8 });
+    await page.mouse.move(cx - 40, cy - 20, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(canvas).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('native sims (registry not yet populated)', () => {
-  const unportedSlugs = ['boids-flocking', 'billiards-break'];
+  const unportedSlugs = ['billiards-break'];
 
   for (const slug of unportedSlugs) {
     test(`${slug} degrades to the unavailable message with no console errors`, async ({ page }) => {
