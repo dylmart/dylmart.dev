@@ -345,6 +345,32 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     expect(errors).toEqual([]);
   });
 
+  test('drag-to-aim then soft-nav away and back boots clean (no leaked pointer state)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/2d-motion/');
+    const canvas2d = page.locator('.sim2d .sim-main');
+    await canvas2d.scrollIntoViewIfNeeded();
+    const box = (await canvas2d.boundingBox())!;
+    // a short drag on the canvas (aim gesture), then in-app navigation
+    await page.mouse.move(box.x + 60, box.y + box.height - 60);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 120, box.y + box.height - 120, { steps: 5 });
+    await page.mouse.up();
+    await page.getByRole('link', { name: /all simulations/i }).click();
+    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await page.locator('.sim-card', { hasText: 'Projectile Motion Playground' }).click();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    // still animates after the round trip
+    const snap = () => page.locator('.sim2d .sim-main').screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a);
+    expect(errors).toEqual([]);
+  });
+
   test('dragging a charge updates the rendered field while paused', async ({ page }) => {
     await page.goto('/projects/sims/electric-field-array/');
     const canvas = page.locator('.sim2d .sim-main');
