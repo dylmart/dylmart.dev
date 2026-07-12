@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 11 published sims', async ({ page }) => {
+  test('index lists exactly the 10 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(11);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(11); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(10); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(11);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -324,7 +324,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(11);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -361,7 +361,7 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     await page.mouse.move(box.x + 120, box.y + box.height - 120, { steps: 5 });
     await page.mouse.up();
     await page.getByRole('link', { name: /all simulations/i }).click();
-    await expect(page.locator('.sim-card')).toHaveCount(11);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await page.locator('.sim-card', { hasText: 'Projectile Motion Playground' }).click();
     await expect(page.locator('.sim2d .sim-main')).toBeVisible();
     // still animates after the round trip
@@ -571,9 +571,8 @@ test.describe('native sims', () => {
   // This is the sixth and final canvas2d native sim; the "registry not yet
   // fully populated" degradation loop that used to live here (unavailable-
   // message assertions against un-ported slugs) no longer has any un-ported
-  // slug to exercise and has been removed. Its regression value is folded
-  // into billiards-break's own describe block below, now exercised against
-  // the real, running sim instead of the placeholder message.
+  // slug to exercise and has been removed. Billiards-break was later cut by the site owner; its regression
+  // coverage went with it.
   test('a native sim page has no glowscript source viewer and credits BUILT NATIVE in the HUD', async ({ page }) => {
     await page.goto('/projects/sims/orbit-sandbox/');
     await expect(page.locator('details.sim-source')).toHaveCount(0);
@@ -581,49 +580,3 @@ test.describe('native sims', () => {
   });
 });
 
-test.describe('billiards-break (native canvas2d)', () => {
-  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
-    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
-
-    await page.goto('/projects/sims/billiards-break/');
-    await expect(page.locator('.sim-unavailable')).toBeHidden();
-    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
-    await expect(page.locator('.sim-controls')).toBeVisible();
-    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
-    await expect(page.locator('[data-act="reset"]')).toBeVisible();
-    await expect(page.locator('[data-act="speed"]')).toBeVisible();
-    await expect(page.locator('.sim-params select')).toBeVisible(); // bounciness e select
-    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // no plot
-    expect(errors).toEqual([]);
-  });
-
-  test('drag-aim from the resting cue ball then release shoots it (canvas changes)', async ({ page }) => {
-    await page.goto('/projects/sims/billiards-break/');
-    const canvas = page.locator('.sim2d .sim-main');
-    await expect(canvas).toBeVisible();
-    await canvas.scrollIntoViewIfNeeded();
-
-    // All balls start at rest, so nothing but the drag itself can change the
-    // canvas here. Cue ball starts at world (15, 17) on a 60x34 table; the
-    // canvas keeps its 640x400 intrinsic aspect (scale = min(w,h ratios) =
-    // clientWidth/60, x-limited), so map through the same worldToPx the sim
-    // uses: px = x * scale, py = clientHeight - offsetY - y * scale.
-    const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
-    const scale = Math.min(dims.w / 60, dims.h / 34);
-    const offsetY = (dims.h - 34 * scale) / 2;
-    const box = (await canvas.boundingBox())!;
-    const cueX = box.x + 15 * scale;
-    const cueY = box.y + (dims.h - offsetY - 17 * scale);
-
-    const before = await canvas.screenshot();
-    await page.mouse.move(cueX, cueY);
-    await page.mouse.down();
-    await page.mouse.move(cueX - 40, cueY + 20, { steps: 5 });
-    await page.mouse.up();
-    await page.waitForTimeout(500);
-    const after = await canvas.screenshot();
-    expect(after.equals(before)).toBe(false);
-  });
-});

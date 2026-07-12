@@ -11,5 +11,4 @@ export const registry: Record<string, () => Promise<{ default: SimFactory; param
   'electric-field-array': () => import('./electric-field-array'),
   'orbit-sandbox': () => import('./orbit-sandbox'),
   'boids-flocking': () => import('./boids-flocking'),
-  'billiards-break': () => import('./billiards-break'),
 };
