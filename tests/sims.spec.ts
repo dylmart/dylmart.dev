@@ -455,8 +455,65 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
   });
 });
 
+test.describe('orbit-sandbox (native canvas2d)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/orbit-sandbox/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim-params')).toBeEmpty(); // no launch-parameter selects
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('orbit-sandbox canvas animates', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => the probe is orbiting
+  });
+
+  test('clicking an empty area while paused drops a planet', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    // Pause first so the drop itself is the only possible source of a pixel
+    // diff, and to exercise the host's redraw-while-paused path (onPointer
+    // returning true forces an immediate sim.draw even with the RAF loop
+    // stopped).
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    // A canvas .screenshot() call auto-scrolls its target into view, which
+    // would otherwise shift the page between measuring boundingBox() and the
+    // first screenshot below; scroll once, up front, to keep them in sync.
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+
+    const before = await canvas.screenshot();
+    // Click well away from both the sun (canvas center) and the probe's
+    // default position (world (12, 0), right-of-center) so it registers as
+    // an empty-area drop rather than a probe drag.
+    await page.mouse.click(box.x + box.width * 0.15, box.y + box.height * 0.15);
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
+  });
+});
+
 test.describe('native sims (registry not yet populated)', () => {
-  const unportedSlugs = ['orbit-sandbox', 'boids-flocking', 'billiards-break'];
+  const unportedSlugs = ['boids-flocking', 'billiards-break'];
 
   for (const slug of unportedSlugs) {
     test(`${slug} degrades to the unavailable message with no console errors`, async ({ page }) => {
