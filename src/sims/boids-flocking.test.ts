@@ -136,6 +136,13 @@ describe('boids-flocking physics', () => {
   });
 
   describe('hawk cadence', () => {
+    it('gives the flock a calm first period (no hawk before t=9s)', () => {
+      const sim = createSim({});
+      const steps = Math.round(0.5 / DT);
+      for (let i = 0; i < steps; i++) sim.advance(sim.dt);
+      expect(flockState(sim).hawk).toBeNull();
+    });
+
     it('is active mid-flight and gone after the flight window elapses', () => {
       const sim = createSim({});
       const steps95 = Math.round(9.5 / DT);

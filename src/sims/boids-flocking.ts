@@ -98,6 +98,9 @@ export function perceives(a: Boid, b: Boid): boolean {
 function computeHawk(state: Pick<State, 't' | 'hawkChords'>): Hawk | null {
   const { t, hawkChords } = state;
   if (hawkChords.length === 0) return null;
+  // The flock gets one calm HAWK_PERIOD before the first strafe: at t=0 the
+  // k=0 window would otherwise put a hawk on screen the moment the sim loads.
+  if (t < HAWK_PERIOD) return null;
   const k = Math.floor(t / HAWK_PERIOD);
   const since = t - k * HAWK_PERIOD;
   if (since < 0 || since >= HAWK_FLIGHT) return null;
