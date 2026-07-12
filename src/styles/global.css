@@ -12,20 +12,22 @@
   --sim-canvas-bg: #000;
 
   /* Shiki `css-variables` theme tokens (used by <Code theme="css-variables">
-     on the sim detail pages' "view original source" blocks). Mapped only to
-     the palette tokens above, so they flip with the theme automatically —
-     no new colors introduced here. */
-  --astro-code-foreground: var(--text);
-  --astro-code-background: var(--surface);
-  --astro-code-token-comment: var(--text-dim);
-  --astro-code-token-string: var(--accent-cool);
-  --astro-code-token-string-expression: var(--accent-cool);
-  --astro-code-token-constant: var(--neutral);
-  --astro-code-token-keyword: var(--accent);
-  --astro-code-token-parameter: var(--text-dim);
-  --astro-code-token-function: var(--accent-bright);
-  --astro-code-token-punctuation: var(--neutral);
-  --astro-code-token-link: var(--accent-cool);
+     on the sim detail pages' "view original source" blocks). Dylan's request:
+     the source should look like it does in the glowscript.org editor, so these
+     are the exact colors of the IDE's `ace-custom` theme (copied verbatim from
+     the vendored public/glowscript/3.2/ide.css) — a fixed light editor panel
+     in BOTH site themes, deliberately not mapped to the palette tokens. */
+  --astro-code-foreground: #000000;          /* plain code: black */
+  --astro-code-background: #ffffff;          /* editor panel: white */
+  --astro-code-token-comment: #a0a0a0;       /* ace_comment rgb(160,160,160) */
+  --astro-code-token-string: #0f8246;        /* ace_string rgb(15,130,70) */
+  --astro-code-token-string-expression: #0f8246;
+  --astro-code-token-constant: #0f8246;      /* ace_constant, same green */
+  --astro-code-token-keyword: #aa0d91;       /* ace_keyword magenta */
+  --astro-code-token-parameter: #000000;
+  --astro-code-token-function: #0000ff;      /* ace_builtin blue (sphere, vec, …) */
+  --astro-code-token-punctuation: #687687;   /* ace_keyword.ace_operator slate */
+  --astro-code-token-link: #0000ff;
 }
 :root[data-theme='dark'] {
   --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
