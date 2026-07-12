@@ -1,0 +1,38 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import SectionLabel from '../../../components/SectionLabel.astro';
+
+const sims = (await getCollection('sims', (e) => e.data.publish))
+  .sort((a, b) => a.data.sort - b.data.sort);
+---
+<Layout title="Physics Sims — dylmart_" description="Interactive physics simulations, live in the browser.">
+  <section class="band">
+    <SectionLabel num="02" title="Physics Sims" />
+    <p class="hud">// {sims.length} SIMULATIONS · WRITTEN FOR PHYSICS 161-163 · RUN LIVE IN YOUR BROWSER</p>
+    <div class="grid">
+      {sims.map((sim) => (
+        <a class="sim-card reveal" href={`/projects/sims/${sim.id}/`}>
+          <img src={`/sim-thumbs/${sim.id}.png`} alt="" width="320" height="200" loading="lazy" />
+          <h3>{sim.data.title}</h3>
+          <p>{sim.data.summary}</p>
+          <span class="hud">{sim.data.render === 'canvas2d' ? '2D PORT' : 'WEBGL'} · {sim.data.folder_origin}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .band { padding: 2.2rem 1.75rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; margin-top: 1.2rem; }
+  .sim-card {
+    display: block; background: var(--surface); border: 1.5px solid var(--neutral); border-radius: 10px;
+    padding: 0.9rem; text-decoration: none; color: var(--text);
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .sim-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .sim-card img { width: 100%; height: auto; border-radius: 6px; background: var(--sim-canvas-bg); }
+  .sim-card h3 { margin: 0.6rem 0 0.2rem; font-size: 0.95rem; }
+  .sim-card p { margin: 0 0 0.5rem; font-size: 0.8rem; color: var(--text-dim); }
+</style>

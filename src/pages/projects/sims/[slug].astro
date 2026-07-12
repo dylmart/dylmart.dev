@@ -1,0 +1,46 @@
+---
+import { getCollection, render } from 'astro:content';
+import { readFile } from 'node:fs/promises';
+import Layout from '../../../layouts/Layout.astro';
+import SectionLabel from '../../../components/SectionLabel.astro';
+import SimGlowScript from '../../../components/SimGlowScript.astro';
+import SimCanvas2D from '../../../components/SimCanvas2D.astro';
+import { Code } from 'astro:components';
+
+export async function getStaticPaths() {
+  const sims = await getCollection('sims', (e) => e.data.publish);
+  return sims.map((sim) => ({ params: { slug: sim.id }, props: { sim } }));
+}
+
+const { sim } = Astro.props;
+const { Content } = await render(sim);
+const source = await readFile(`src/content/sims/${sim.id}/source.py`, 'utf8');
+---
+<Layout title={`${sim.data.title} — dylmart_`} description={sim.data.summary}>
+  <section class="band">
+    <SectionLabel num="02" title={sim.data.title} />
+    <p class="hud">// WEB VPYTHON {sim.data.glowscript_version} · {sim.data.folder_origin} · ALLAN HANCOCK COLLEGE PHYSICS</p>
+    <div class="prose"><Content /></div>
+
+    {sim.data.render === 'glowscript' && (
+      <SimGlowScript slug={sim.id} thumbSrc={`/sim-thumbs/${sim.id}.png`} title={sim.data.title} />
+    )}
+    {sim.data.render === 'canvas2d' && (
+      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', '2d-motion', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
+    )}
+
+    <details class="sim-source">
+      <summary class="hud">// VIEW ORIGINAL GLOWSCRIPT SOURCE</summary>
+      <Code code={source} lang="python" theme="css-variables" />
+    </details>
+    <p><a href="/projects/sims/">← All simulations</a></p>
+  </section>
+</Layout>
+
+<style>
+  .band { padding: 2.2rem 1.75rem; max-width: 56rem; }
+  .prose { margin: 0.8rem 0 1.2rem; }
+  .sim-source { margin-top: 1.4rem; }
+  .sim-source summary { cursor: pointer; }
+  .sim-source :global(pre) { padding: 1rem; border-radius: 8px; border: 1.5px solid var(--neutral); overflow-x: auto; }
+</style>

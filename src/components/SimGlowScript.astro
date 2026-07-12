@@ -1,0 +1,157 @@
+---
+interface Props { slug: string; thumbSrc: string; title: string }
+const { slug, thumbSrc, title } = Astro.props;
+---
+<div class="sim-stage" data-slug={slug}>
+  <img class="sim-thumb" src={thumbSrc} alt={`${title} preview`} width="640" height="400" />
+  <button class="sim-run" type="button">▶ Run simulation</button>
+  <p class="sim-fallback hud" hidden>// WEBGL UNAVAILABLE — SIMULATION CANNOT RUN IN THIS BROWSER</p>
+</div>
+
+<style>
+  .sim-stage { position: relative; border: 1.5px solid var(--neutral); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .sim-thumb { display: block; width: 100%; height: auto; opacity: 0.6; }
+  .sim-run {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--accent); color: var(--bg); border: none; cursor: pointer;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8rem;
+    padding: 0.9rem 1.6rem; border-radius: 4px;
+  }
+  .sim-run:hover { background: var(--accent-bright); }
+  .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
+  :global(.sim-stage.sim-running) { display: flex; flex-wrap: wrap; align-items: stretch; }
+  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); flex: 0 1 auto; }
+  /* GlowScript's print() console, relocated from document.body into the stage
+     (docked right of the canvas; wraps below it on narrow screens). */
+  :global(.sim-print) {
+    flex: 1 1 200px; min-width: 200px; display: flex; flex-direction: column;
+    gap: 0.4rem; padding: 0.6rem; background: var(--surface);
+    border-left: 1.5px dashed var(--neutral);
+  }
+  :global(.sim-print > div) { flex: 1; display: flex; min-height: 120px; }
+  :global(.sim-print textarea) {
+    flex: 1; width: 100% !important; height: auto !important; resize: none;
+    background: var(--sim-canvas-bg) !important; color: var(--text) !important;
+    border: none !important; padding: 0.5rem;
+    font: 11px/1.5 'Space Mono', monospace !important;
+  }
+</style>
+
+<script>
+  const BASE = '/glowscript/3.2';
+  const loadScript = (src: string) =>
+    new Promise<void>((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = () => res(); s.onerror = () => rej(new Error(src));
+      document.head.appendChild(s);
+    });
+  const loadCss = (href: string) => {
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l);
+  };
+
+  // Compiled sims run an unbounded `while(true){ await rate(...) }` render
+  // loop. Astro's ClientRouter (view transitions) swaps the DOM on soft nav
+  // but `window` persists, so a booted sim's loop keeps running forever on a
+  // detached canvas — CPU/battery drain, and repeated visits can exhaust the
+  // browser's WebGL context limit. There is no teardown path for the
+  // GlowScript runtime, so once a sim has booted we force the *next*
+  // navigation away from this page to be a real full page load instead of a
+  // soft swap, which tears down `window` (and the loop with it).
+  //
+  // Verified against the installed astro@7.0.6 source
+  // (node_modules/astro/dist/transitions/events.js +
+  // node_modules/astro/dist/transitions/router.js):
+  //   - `astro:before-preparation` dispatches a cancelable `Event`
+  //     (`TransitionBeforePreparationEvent`, constructed with
+  //     `{ cancelable: true }`), so `e.preventDefault()` is honored.
+  //   - `e.to` is a real `URL` (built via `new URL(href, location.href)`
+  //     before dispatch), so `e.to.href` is safe to read.
+  //   - router.js's `transition()` already does
+  //     `if (prepEvent.defaultPrevented) { ...; location.href = to.href; }`
+  //     as its own fallback — so preventDefault() alone is enough to force a
+  //     real navigation. We still set `location.href` explicitly ourselves
+  //     (belt-and-suspenders / matches the documented fix pattern); it's a
+  //     same-value assignment so it's harmless if Astro's own fallback also
+  //     runs.
+  let fullReloadArmed = false;
+  function armFullReloadOnNextNavigation() {
+    if (fullReloadArmed) return;
+    fullReloadArmed = true;
+    document.addEventListener('astro:before-preparation', (e) => {
+      e.preventDefault();
+      location.href = e.to.href;
+    });
+  }
+
+  // GlowScript appends its print() console (a <div> wrapping textarea#print) to
+  // the END of document.body, where it lands below the footer, invisible unless
+  // you scroll. Relocate it into the sim stage the moment it appears. The
+  // console is created lazily on the sim's first print() call, which can happen
+  // any time after boot — hence the MutationObserver rather than a one-shot.
+  function relocatePrintConsole(stage: HTMLElement): boolean {
+    const ta = document.getElementById('print');
+    if (!ta) return false;
+    if (ta.closest('.sim-stage')) return true; // already moved
+    let top: HTMLElement = ta;
+    while (top.parentElement && top.parentElement !== document.body) top = top.parentElement;
+    if (top.parentElement !== document.body) return false;
+    const panel = document.createElement('div');
+    panel.className = 'sim-print';
+    const label = document.createElement('p');
+    label.className = 'hud';
+    label.textContent = '// PRINT OUTPUT';
+    panel.append(label, top);
+    stage.appendChild(panel);
+    return true;
+  }
+  function watchPrintConsole(stage: HTMLElement) {
+    if (relocatePrintConsole(stage)) return;
+    const mo = new MutationObserver(() => {
+      if (relocatePrintConsole(stage)) mo.disconnect();
+    });
+    mo.observe(document.body, { childList: true });
+  }
+
+  function wire() {
+    const stage = document.querySelector<HTMLElement>('.sim-stage[data-slug]');
+    const btn = stage?.querySelector<HTMLButtonElement>('.sim-run');
+    if (!stage || !btn || btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.textContent = 'Loading…';
+      const probe = document.createElement('canvas');
+      if (!probe.getContext('webgl2') && !probe.getContext('webgl')) {
+        stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;
+        btn.remove();
+        return;
+      }
+      try {
+        // NOTE: deliberately NOT loading ide.css. It contains only glowscript.org
+        // IDE page chrome (bare `body { background: #f1f2f4; font-family: Verdana }`
+        // etc. — no .glowscript/canvas rules at all) and repaints the whole site
+        // when injected. jquery-ui.custom.css is safe: scoped to .ui-* selectors,
+        // needed for sims that use jquery-ui widgets.
+        loadCss(`${BASE}/jquery-ui.custom.css`);
+        await loadScript(`${BASE}/jquery.min.js`);
+        await loadScript(`${BASE}/jquery-ui.custom.min.js`);
+        await loadScript(`${BASE}/glow.3.2.min.js`);
+        await loadScript(`${BASE}/RSrun.3.2.min.js`);
+        stage.querySelector('.sim-thumb')?.remove();
+        btn.remove();
+        const holder = document.createElement('div');
+        holder.id = 'glowscript'; holder.className = 'glowscript';
+        stage.appendChild(holder);
+        await loadScript(`/sim-code/${stage.dataset.slug}.js`);
+        stage.classList.add('sim-running');
+        watchPrintConsole(stage);
+        armFullReloadOnNextNavigation();
+      } catch (e) {
+        stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;
+        console.error(e);
+      }
+    });
+  }
+  wire();
+  document.addEventListener('astro:after-swap', wire);
+</script>
