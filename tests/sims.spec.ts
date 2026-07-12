@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 8 published sims', async ({ page }) => {
+  test('index lists exactly the 11 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(11);
     await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(11); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(11);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -324,7 +324,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(11);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -361,7 +361,7 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     await page.mouse.move(box.x + 120, box.y + box.height - 120, { steps: 5 });
     await page.mouse.up();
     await page.getByRole('link', { name: /all simulations/i }).click();
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(11);
     await page.locator('.sim-card', { hasText: 'Projectile Motion Playground' }).click();
     await expect(page.locator('.sim2d .sim-main')).toBeVisible();
     // still animates after the round trip
@@ -452,5 +452,28 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     await page.mouse.up();
     const after = await canvas.screenshot();
     expect(after.equals(before)).toBe(false);
+  });
+});
+
+test.describe('native sims (registry not yet populated)', () => {
+  const unportedSlugs = ['orbit-sandbox', 'boids-flocking', 'billiards-break'];
+
+  for (const slug of unportedSlugs) {
+    test(`${slug} degrades to the unavailable message with no console errors`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(String(e)));
+      page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+      await page.goto(`/projects/sims/${slug}/`);
+      await expect(page.locator('.sim-unavailable')).toBeVisible();
+      await expect(page.locator('.sim2d .sim-main')).toHaveCount(0);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  test('a native sim page has no glowscript source viewer and credits BUILT NATIVE in the HUD', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    await expect(page.locator('details.sim-source')).toHaveCount(0);
+    await expect(page.locator('p.hud').first()).toContainText('BUILT NATIVE');
   });
 });

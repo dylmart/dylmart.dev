@@ -13,6 +13,7 @@ const sims = defineCollection({
     original_name: z.string().optional(),
     folder_origin: z.string(),
     sort: z.number().default(99),
+    native: z.boolean().default(false),
   }),
 });
 
