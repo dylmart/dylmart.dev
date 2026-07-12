@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 8 published sims', async ({ page }) => {
+  test('index lists exactly the 10 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(10); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -165,6 +165,7 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await expect(page.locator('[data-act="reset"]')).toBeVisible();
     await expect(page.locator('[data-act="speed"]')).toBeVisible();
     await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // graph cut per Dylan
+    await expect(page.locator('.sim-params input[type="number"]')).toHaveCount(3); // v0x, v0y, ay
     expect(errors).toEqual([]);
   });
 
@@ -182,9 +183,11 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await page.goto('/projects/sims/2d-motion/');
     const canvas = page.locator('.sim2d .sim-main');
     await expect(canvas).toBeVisible();
-    const selects = page.locator('.sim-params select');
-    await expect(selects).toHaveCount(3); // v0x, v0y, ay
-    await selects.nth(1).selectOption('8'); // v0y: 5 -> 8
+    const inputs = page.locator('.sim-params input[type="number"]');
+    await expect(inputs).toHaveCount(3); // v0x, v0y, ay
+    const v0yInput = page.locator('.sim-params input[data-key="v0y"]');
+    await v0yInput.fill('8'); // v0y: 5 -> 8
+    await v0yInput.dispatchEvent('change');
     // a param change pauses and rebuilds the sim (fresh instance), so it
     // needs an explicit Play click to resume animating.
     await page.locator('[data-act="toggle"]').click();
@@ -324,7 +327,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -361,7 +364,7 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     await page.mouse.move(box.x + 120, box.y + box.height - 120, { steps: 5 });
     await page.mouse.up();
     await page.getByRole('link', { name: /all simulations/i }).click();
-    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await page.locator('.sim-card', { hasText: 'Projectile Motion Playground' }).click();
     await expect(page.locator('.sim2d .sim-main')).toBeVisible();
     // still animates after the round trip
@@ -454,3 +457,129 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     expect(after.equals(before)).toBe(false);
   });
 });
+
+test.describe('orbit-sandbox (native canvas2d)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/orbit-sandbox/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim-params')).toBeEmpty(); // no launch-parameter selects
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('orbit-sandbox canvas animates', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => the probe is orbiting
+  });
+
+  test('clicking an empty area while paused drops a planet', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    // Pause first so the drop itself is the only possible source of a pixel
+    // diff, and to exercise the host's redraw-while-paused path (onPointer
+    // returning true forces an immediate sim.draw even with the RAF loop
+    // stopped).
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    // A canvas .screenshot() call auto-scrolls its target into view, which
+    // would otherwise shift the page between measuring boundingBox() and the
+    // first screenshot below; scroll once, up front, to keep them in sync.
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+
+    const before = await canvas.screenshot();
+    // Click well away from both the sun (canvas center) and the probe's
+    // default position (world (12, 0), right-of-center) so it registers as
+    // an empty-area drop rather than a probe drag.
+    await page.mouse.click(box.x + box.width * 0.15, box.y + box.height * 0.15);
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
+  });
+});
+
+test.describe('boids-flocking (native canvas2d)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/boids-flocking/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim-params select')).toBeVisible(); // seed select
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('boids-flocking canvas animates', async ({ page }) => {
+    await page.goto('/projects/sims/boids-flocking/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => the flock is moving
+  });
+
+  test('a hold-and-move pointer gesture (predator drag) produces no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/boids-flocking/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+
+    // Hold on the canvas center (spooking the flock is a visual effect only;
+    // flockState isn't reachable from Playwright, so this asserts the engine
+    // survives the gesture cleanly rather than pixel-diffing the predator).
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + 60, cy + 40, { steps: 8 });
+    await page.mouse.move(cx - 40, cy - 20, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(canvas).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('native sims', () => {
+  // This is the sixth and final canvas2d native sim; the "registry not yet
+  // fully populated" degradation loop that used to live here (unavailable-
+  // message assertions against un-ported slugs) no longer has any un-ported
+  // slug to exercise and has been removed. Billiards-break was later cut by the site owner; its regression
+  // coverage went with it.
+  test('a native sim page has no glowscript source viewer and credits BUILT NATIVE in the HUD', async ({ page }) => {
+    await page.goto('/projects/sims/orbit-sandbox/');
+    await expect(page.locator('details.sim-source')).toHaveCount(0);
+    await expect(page.locator('p.hud').first()).toContainText('BUILT NATIVE');
+  });
+});
+

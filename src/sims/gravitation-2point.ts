@@ -203,7 +203,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
       ctx.fill();
 
       ctx.font = '12px "Space Mono", monospace';
-      ctx.fillStyle = view.css('--text-dim');
+      ctx.fillStyle = view.css('--sim-canvas-fg-dim');
       ctx.fillText(`t = ${state.t.toFixed(2)} s`, 10, 18);
     },
 

@@ -10,6 +10,10 @@
      background (not a theme color), so it's defined once here and shared by
      both themes rather than overridden in the dark-mode block below. */
   --sim-canvas-bg: #000;
+  /* Fixed light ink for drawing ON that always-black canvas. Theme-flipping
+     tokens like --text go near-black in light mode and vanish against it. */
+  --sim-canvas-fg: #f0ece3;
+  --sim-canvas-fg-dim: var(--neutral); /* theme-stable gray, readable on black */
 
   /* Shiki `css-variables` theme tokens for the sim pages' view-source blocks.
      Scheme: the glowscript.org editor's hue roles (magenta keywords, green

@@ -1,6 +1,6 @@
 ---
 title: "Two-Body Orbits (3D)"
-summary: "Two-body orbits rendered in WebGL with planet textures — the original Web VPython program."
+summary: "The original Web VPython program in WebGL, planet textures and all."
 publish: true
 render: glowscript
 glowscript_version: "3.2"
@@ -9,4 +9,4 @@ folder_origin: "Physics161"
 sort: 12
 ---
 
-This is the untouched original WebGL/GlowScript program (planet textures vendored locally); the 2D port lives at [/projects/sims/gravitation-2point/](/projects/sims/gravitation-2point/).
+This is the untouched original program running in WebGL, textures and all. The 2D port lives at [/projects/sims/gravitation-2point/](/projects/sims/gravitation-2point/).

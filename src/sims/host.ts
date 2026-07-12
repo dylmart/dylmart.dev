@@ -65,7 +65,7 @@ export function mountSim(
     });
     canvas.addEventListener('pointermove', (e) => handlePointer('move', e));
     canvas.addEventListener('pointerup', (e) => handlePointer('up', e));
-    canvas.addEventListener('pointercancel', (e) => handlePointer('up', e));
+    canvas.addEventListener('pointercancel', (e) => handlePointer('cancel', e));
   }
 
   function frame(t: number) {

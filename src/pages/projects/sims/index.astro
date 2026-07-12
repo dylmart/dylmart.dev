@@ -6,7 +6,7 @@ import SectionLabel from '../../../components/SectionLabel.astro';
 const sims = (await getCollection('sims', (e) => e.data.publish))
   .sort((a, b) => a.data.sort - b.data.sort);
 ---
-<Layout title="Physics Sims — dylmart_" description="Interactive physics simulations, live in the browser.">
+<Layout title="Physics Sims · dylmart_" description="Interactive physics simulations, live in the browser.">
   <section class="band">
     <SectionLabel num="02" title="Physics Sims" />
     <p class="hud">// {sims.length} SIMULATIONS · WRITTEN FOR PHYSICS 161-163 · RUN LIVE IN YOUR BROWSER</p>

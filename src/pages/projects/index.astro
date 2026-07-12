@@ -5,7 +5,7 @@ import SectionLabel from '../../components/SectionLabel.astro';
 
 const simCount = (await getCollection('sims', (e) => e.data.publish)).length;
 ---
-<Layout title="Projects — dylmart_">
+<Layout title="Projects · dylmart_">
   <section class="band">
     <SectionLabel num="02" title="Projects" />
     <a class="feature reveal" href="/projects/sims/">
@@ -13,7 +13,7 @@ const simCount = (await getCollection('sims', (e) => e.data.publish)).length;
       <p>{simCount} interactive physics sims written in Web VPython for the Physics 161-163 series, migrated here to run live: electric fields, orbital mechanics, standing waves, and a block-collision sim that counts out π.</p>
       <span class="hud">// WEBGL + CANVAS · RUNS IN YOUR BROWSER</span>
     </a>
-    <p class="hud" style="margin-top:1.6rem;">// MORE MISSION HARDWARE BEING ASSEMBLED — BACKENDS, GAMES, TOOLING</p>
+    <p class="hud" style="margin-top:1.6rem;">// MORE MISSION HARDWARE BEING ASSEMBLED · BACKENDS, GAMES, TOOLING</p>
   </section>
 </Layout>
 

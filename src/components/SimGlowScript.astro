@@ -5,7 +5,7 @@ const { slug, thumbSrc, title } = Astro.props;
 <div class="sim-stage" data-slug={slug}>
   <img class="sim-thumb" src={thumbSrc} alt={`${title} preview`} width="640" height="400" />
   <button class="sim-run" type="button">▶ Run simulation</button>
-  <p class="sim-fallback hud" hidden>// WEBGL UNAVAILABLE — SIMULATION CANNOT RUN IN THIS BROWSER</p>
+  <p class="sim-fallback hud" hidden>// WEBGL UNAVAILABLE · SIMULATION CANNOT RUN IN THIS BROWSER</p>
 </div>
 
 <style>

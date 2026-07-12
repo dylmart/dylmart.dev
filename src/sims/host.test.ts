@@ -11,6 +11,10 @@ describe('pointer state reducer', () => {
     held = pointerStateReducer('up', held);     // -> false
     expect(held).toBe(false);
   });
+
+  it('cancel releases held state, same as up', () => {
+    expect(pointerStateReducer('cancel', true)).toBe(false);
+  });
 });
 
 describe('fixed timestep accumulator', () => {
