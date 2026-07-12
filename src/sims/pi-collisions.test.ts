@@ -8,6 +8,9 @@ describe('PiCollisions physics', () => {
   it('mass ratio 10000 -> 314 collisions', () => {
     expect(runToCompletion(10_000)).toBe(314);
   });
+  it('mass ratio 100^4 -> 31415 collisions', () => {
+    expect(runToCompletion(1e8)).toBe(31415);
+  });
   it('plots in energy-circle coordinates (√m2·v2, √m1·v1) with pre-collision velocities', () => {
     // n=1 → m2=100. First block-block collision: captured pre-collision
     // velocities are b1vx=0, b2vx=-10 → point (√100·-10, √1·0) = (-100, 0).
