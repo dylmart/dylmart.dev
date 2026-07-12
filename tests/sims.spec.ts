@@ -14,7 +14,7 @@ test.describe('accessibility', () => {
   });
 
   test('privacy sweep covers sim pages', async ({ page }) => {
-    for (const route of ['/projects/sims/', '/projects/sims/pi-collisions/', '/projects/sims/straight-wire/']) {
+    for (const route of ['/projects/sims/', '/projects/sims/pi-collisions/', '/projects/sims/many-particles-in-bottle/']) {
       await page.goto(route);
       const html = (await page.content()).toLowerCase();
       expect(html).not.toContain('mailto:');
@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 13 published sims', async ({ page }) => {
+  test('index lists exactly the 10 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(13);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     await expect(page.locator('.sim-card', { hasText: 'Pi Collisions' })).toBeVisible();
   });
 
@@ -59,8 +59,28 @@ test.describe('sims section', () => {
     expect(after).toEqual(before);
   });
 
+  test('glowscript print() console docks inside the sim stage, not at body end', async ({ page }) => {
+    await page.goto('/projects/sims/many-particles-in-bottle/');
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+    // GlowScript creates the console lazily on the sim's first print() —
+    // real sim-time that software WebGL may never reach in CI, so instead of
+    // waiting for the sim we inject the exact structure the runtime appends
+    // (glow.3.2 print defaults: place $("body"), a wrapper div around
+    // textarea#print) and assert the stage's observer docks it.
+    await page.evaluate(() => {
+      const wrap = document.createElement('div');
+      const ta = document.createElement('textarea');
+      ta.id = 'print';
+      wrap.appendChild(ta);
+      document.body.appendChild(wrap);
+    });
+    await expect(page.locator('.sim-stage .sim-print #print')).toBeAttached({ timeout: 5000 });
+    expect(await page.evaluate(() => document.querySelectorAll('#print').length)).toBe(1);
+  });
+
   test('view-source shows original VPython', async ({ page }) => {
-    await page.goto('/projects/sims/straight-wire/');
+    await page.goto('/projects/sims/many-particles-in-bottle/');
     await page.locator('details.sim-source summary').click();
     await expect(page.locator('details.sim-source')).toContainText('Web VPython 3.2');
   });
@@ -85,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(13); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(10); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -98,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(13);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -261,7 +281,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(13);
+    await expect(page.locator('.sim-card')).toHaveCount(10);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });

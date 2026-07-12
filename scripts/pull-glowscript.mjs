@@ -41,8 +41,8 @@ const CANVAS2D = new Set(['pi-collisions', '2d-motion', 'rope-oscillations-sim',
 const PUBLISH = new Set([
   ...CANVAS2D,
   'electric-field-array', 'electric-potential-array', 'field-v-potential-array',
-  'many-particles-in-bottle', 'particle-in-a-bottle', 'pib-greater-dist',
-  'pib-greater-radius', 'straight-wire',
+  'many-particles-in-bottle', 'particle-in-a-bottle',
+
 ]);
 // Showpieces first on the index page, in this order:
 const SORT = new Map([...PUBLISH].map((s, i) => [s, i + 1]));

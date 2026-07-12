@@ -19,7 +19,22 @@ const { slug, thumbSrc, title } = Astro.props;
   }
   .sim-run:hover { background: var(--accent-bright); }
   .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
-  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); }
+  :global(.sim-stage.sim-running) { display: flex; flex-wrap: wrap; align-items: stretch; }
+  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); flex: 0 1 auto; }
+  /* GlowScript's print() console, relocated from document.body into the stage
+     (docked right of the canvas; wraps below it on narrow screens). */
+  :global(.sim-print) {
+    flex: 1 1 200px; min-width: 200px; display: flex; flex-direction: column;
+    gap: 0.4rem; padding: 0.6rem; background: var(--surface);
+    border-left: 1.5px dashed var(--neutral);
+  }
+  :global(.sim-print > div) { flex: 1; display: flex; min-height: 120px; }
+  :global(.sim-print textarea) {
+    flex: 1; width: 100% !important; height: auto !important; resize: none;
+    background: var(--sim-canvas-bg) !important; color: var(--text) !important;
+    border: none !important; padding: 0.5rem;
+    font: 11px/1.5 'Space Mono', monospace !important;
+  }
 </style>
 
 <script>
@@ -69,6 +84,35 @@ const { slug, thumbSrc, title } = Astro.props;
     });
   }
 
+  // GlowScript appends its print() console (a <div> wrapping textarea#print) to
+  // the END of document.body, where it lands below the footer, invisible unless
+  // you scroll. Relocate it into the sim stage the moment it appears. The
+  // console is created lazily on the sim's first print() call, which can happen
+  // any time after boot — hence the MutationObserver rather than a one-shot.
+  function relocatePrintConsole(stage: HTMLElement): boolean {
+    const ta = document.getElementById('print');
+    if (!ta) return false;
+    if (ta.closest('.sim-stage')) return true; // already moved
+    let top: HTMLElement = ta;
+    while (top.parentElement && top.parentElement !== document.body) top = top.parentElement;
+    if (top.parentElement !== document.body) return false;
+    const panel = document.createElement('div');
+    panel.className = 'sim-print';
+    const label = document.createElement('p');
+    label.className = 'hud';
+    label.textContent = '// PRINT OUTPUT';
+    panel.append(label, top);
+    stage.appendChild(panel);
+    return true;
+  }
+  function watchPrintConsole(stage: HTMLElement) {
+    if (relocatePrintConsole(stage)) return;
+    const mo = new MutationObserver(() => {
+      if (relocatePrintConsole(stage)) mo.disconnect();
+    });
+    mo.observe(document.body, { childList: true });
+  }
+
   function wire() {
     const stage = document.querySelector<HTMLElement>('.sim-stage[data-slug]');
     const btn = stage?.querySelector<HTMLButtonElement>('.sim-run');
@@ -99,6 +143,8 @@ const { slug, thumbSrc, title } = Astro.props;
         holder.id = 'glowscript'; holder.className = 'glowscript';
         stage.appendChild(holder);
         await loadScript(`/sim-code/${stage.dataset.slug}.js`);
+        stage.classList.add('sim-running');
+        watchPrintConsole(stage);
         armFullReloadOnNextNavigation();
       } catch (e) {
         stage.querySelector<HTMLElement>('.sim-fallback')!.hidden = false;

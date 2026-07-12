@@ -1,8 +1,11 @@
 ---
+import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import SectionLabel from '../components/SectionLabel.astro';
 import MissionCard from '../components/MissionCard.astro';
+
+const simCount = (await getCollection('sims', (e) => e.data.publish)).length;
 ---
 <Layout title="dylmart_ — Dylan Martin">
   <Hero />
@@ -13,7 +16,7 @@ import MissionCard from '../components/MissionCard.astro';
       <MissionCard href="/photos" title="Photos" blurb="Photo projects and a curated gallery, shot on Canon." hue="gray" />
       <MissionCard href="/blog" title="Blog" blurb="Dev logs, homelab incidents, D&D, life in SLO." hue="paper" />
     </div>
-    <a class="simline reveal mono" href="/projects/sims/">// NEW: 13 PHYSICS SIMS NOW RUN LIVE IN YOUR BROWSER →</a>
+    <a class="simline reveal mono" href="/projects/sims/">// NEW: {simCount} PHYSICS SIMS NOW RUN LIVE IN YOUR BROWSER →</a>
   </section>
 </Layout>
 
