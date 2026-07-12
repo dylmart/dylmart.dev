@@ -10,7 +10,8 @@
     "test": "vitest run && astro build && playwright test",
     "test:unit": "vitest run",
     "deploy": "bash scripts/deploy-home.sh",
-    "compile:sims": "node scripts/compile-sims.mjs"
+    "compile:sims": "node scripts/compile-sims.mjs",
+    "shoot:thumbs": "astro build && node scripts/shoot-thumbs.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

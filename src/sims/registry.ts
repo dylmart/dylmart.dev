@@ -8,4 +8,5 @@ export const registry: Record<string, () => Promise<{ default: SimFactory; param
   'gravitation-2point': () => import('./gravitation-2point'),
   'rope-oscillations-sim': () => import('./rope-oscillations-sim'),
   'yoyo-lab3': () => import('./yoyo-lab3'),
+  'electric-field-array': () => import('./electric-field-array'),
 };

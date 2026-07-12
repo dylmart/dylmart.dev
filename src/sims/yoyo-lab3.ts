@@ -50,14 +50,16 @@ interface State {
   v: number; // vertical velocity, m/s (signed; negative = falling)
   omega: number; // angular velocity about the axle's z-axis, rad/s
   theta: number; // visual spin angle, radians (for drawing the spoke)
-  unrolled: number; // string length paid out so far, meters
+  unrolled: number; // string length paid out so far, meters (clamped [0, STRING_MAX_LENGTH])
+  // Dylan-requested extension beyond source.py: 1 = descending/unwinding,
+  // -1 = climbing/rewinding. See stepOnce for the rebound model.
+  direction: 1 | -1;
   n: number; // steps taken; t is derived as n*DT to avoid float accumulation drift
   t: number;
-  done: boolean;
 }
 
 function makeState(): State {
-  return { y: 0, v: 0, omega: 0, theta: 0, unrolled: 0, n: 0, t: 0, done: false };
+  return { y: 0, v: 0, omega: 0, theta: 0, unrolled: 0, direction: 1, n: 0, t: 0 };
 }
 
 // Verbatim translation of the while-loop body in source.py's run_sim():
@@ -69,30 +71,40 @@ function makeState(): State {
 //   S = axle.radius * dtheta
 //   string.length += S
 //   while (string.length - string_start_length) < string_max_length
+// Dylan-requested extension beyond source.py: source.py's while-loop simply
+// exits once the string is fully paid out, with no bounce or free-fall phase
+// modeled afterward. Here the yoyo instead rebounds at the bottom of the
+// string and climbs back up by rewinding, flipping again at the top (same
+// |alpha|, same rolling-without-slipping kinematics run in reverse), so it
+// oscillates forever instead of freezing. NOT a perfect limit cycle: the
+// bottom flip clamps position (unrolled) while the top flip clamps velocity
+// (omega), and that asymmetry bleeds ~2.3% of the amplitude per period — the
+// peak drifts a little lower each cycle, like a real yoyo winding down.
 function stepOnce(s: State): void {
-  if (s.done) return;
+  s.omega += s.direction * ALPHA * DT;
+  if (s.direction === -1 && s.omega < 0) s.omega = 0; // clamp omega >= 0 at the top-of-climb flip
 
-  s.omega += ALPHA * DT;
   const dtheta = s.omega * DT;
   s.theta += -dtheta;
 
-  // cross(vec(R, 0, 0), vec(0, 0, omega)) = (0, -R*omega, 0): rolling-without-
-  // slipping identity baked directly into the kinematics, not an emergent
-  // property of a separately-integrated ODE.
-  s.v = -R * s.omega;
+  // cross(vec(R, 0, 0), vec(0, 0, omega)) = (0, -R*omega, 0) while descending;
+  // mirrored while climbing (rewinding raises the yoyo instead of dropping
+  // it), so v = -direction * R * omega covers both phases.
+  s.v = -s.direction * R * s.omega;
   s.y += s.v * DT;
 
-  const S = R * dtheta;
-  s.unrolled += S;
+  s.unrolled += s.direction * R * s.omega * DT;
+  if (s.unrolled > STRING_MAX_LENGTH) s.unrolled = STRING_MAX_LENGTH;
+  if (s.unrolled < 0) s.unrolled = 0;
 
   s.n += 1;
   s.t = s.n * DT;
 
-  // source.py's while-loop simply exits once the string is fully paid out;
-  // there is no bounce or free-fall phase modeled afterward, so the port
-  // freezes state here (matching the `done` convention used by the other
-  // canvas2d ports) rather than inventing physics source.py never specifies.
-  if (s.unrolled >= STRING_MAX_LENGTH) s.done = true;
+  if (s.direction === 1 && s.unrolled >= STRING_MAX_LENGTH) {
+    s.direction = -1; // bottom of the string: rebound, begin climbing
+  } else if (s.direction === -1 && s.omega <= 0) {
+    s.direction = 1; // top of the climb: begin descending again
+  }
 }
 
 // Maps a live Sim2D instance to its internal physics state, without putting
@@ -131,11 +143,9 @@ const factory = (_p: Record<string, number>): Sim2D => {
     dt: DT,
 
     advance(dt: number) {
-      if (state.done) return;
       const steps = Math.min(Math.max(0, Math.round(dt / DT)), MAX_STEPS_PER_ADVANCE_CALL);
       for (let i = 0; i < steps; i++) {
         stepOnce(state);
-        if (state.done) break;
       }
     },
 
@@ -189,10 +199,6 @@ const factory = (_p: Record<string, number>): Sim2D => {
       ctx.fillText(`t = ${state.t.toFixed(2)} s`, 10, 18);
       ctx.fillText(`y = ${state.y.toFixed(3)} m`, 10, 34);
       ctx.fillText(`ω = ${state.omega.toFixed(2)} rad/s`, 10, 50);
-    },
-
-    done() {
-      return state.done;
     },
 
     reset() {

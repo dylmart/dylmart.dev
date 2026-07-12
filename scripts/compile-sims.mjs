@@ -67,6 +67,13 @@ for (const slug of await readdir(SIMS)) {
   js = ';(function() {' + js +
     '\n;$(function(){ window.__context = { glowscript_container: $("#glowscript").removeAttr("id") }; __main__() })})()';
   js = js.replace('</', '<\\/');
+  // Rewrite vendored planet texture URLs to same-origin copies (see
+  // scripts/vendor-glowscript.sh) — source.py stays verbatim with the
+  // original imgur URLs; only the compiled output is patched, since
+  // external hosts are forbidden at runtime.
+  js = js
+    .replaceAll('https://i.imgur.com/ns7Q3s6.jpeg', '/sim-textures/planet-a.jpeg')
+    .replaceAll('https://i.imgur.com/7XyId7s.jpeg', '/sim-textures/planet-b.jpeg');
   await writeFile(join(SIMS, slug, 'compiled.js'), js);
   await writeFile(join(ROOT, 'public/sim-code', `${slug}.js`), js);
   console.log(`compiled ${slug} (${js.length} bytes)`);

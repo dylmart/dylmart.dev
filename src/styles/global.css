@@ -11,27 +11,38 @@
      both themes rather than overridden in the dark-mode block below. */
   --sim-canvas-bg: #000;
 
-  /* Shiki `css-variables` theme tokens (used by <Code theme="css-variables">
-     on the sim detail pages' "view original source" blocks). Mapped only to
-     the palette tokens above, so they flip with the theme automatically —
-     no new colors introduced here. */
+  /* Shiki `css-variables` theme tokens for the sim pages' view-source blocks.
+     Scheme: the glowscript.org editor's hue roles (magenta keywords, green
+     strings/constants, blue builtins, gray comments — from the vendored
+     ide.css ace-custom theme), but THEME-AWARE per Dylan: the panel follows
+     the site surface, light mode uses the editor's exact colors, dark mode
+     uses lightened variants of the same hues. Deliberate hex exception. */
   --astro-code-foreground: var(--text);
   --astro-code-background: var(--surface);
-  --astro-code-token-comment: var(--text-dim);
-  --astro-code-token-string: var(--accent-cool);
-  --astro-code-token-string-expression: var(--accent-cool);
-  --astro-code-token-constant: var(--neutral);
-  --astro-code-token-keyword: var(--accent);
-  --astro-code-token-parameter: var(--text-dim);
-  --astro-code-token-function: var(--accent-bright);
-  --astro-code-token-punctuation: var(--neutral);
-  --astro-code-token-link: var(--accent-cool);
+  --astro-code-token-comment: #a0a0a0;       /* ace_comment */
+  --astro-code-token-string: #0f8246;        /* ace_string green */
+  --astro-code-token-string-expression: #0f8246;
+  --astro-code-token-constant: #0f8246;
+  --astro-code-token-keyword: #aa0d91;       /* ace_keyword magenta */
+  --astro-code-token-parameter: var(--text);
+  --astro-code-token-function: #0000ff;      /* ace_builtin blue (sphere, vec, …) */
+  --astro-code-token-punctuation: #687687;   /* ace operator slate */
+  --astro-code-token-link: #0000ff;
 }
 :root[data-theme='dark'] {
   --bg: #0e0e12; --bg-2: #17171e; --surface: #1d1d26;
   --text: #f0ece3; --text-dim: #9a958a;
   --accent: #f97316; --accent-bright: #fb923c;
   --accent-cool: #38bdf8; --accent-cool-bright: #7dd3fc;
+  /* dark-adapted glowscript editor hues (see the code-token block above) */
+  --astro-code-token-comment: #8a8f98;
+  --astro-code-token-string: #5fd38d;
+  --astro-code-token-string-expression: #5fd38d;
+  --astro-code-token-constant: #5fd38d;
+  --astro-code-token-keyword: #e37bd4;
+  --astro-code-token-function: #6db3ff;
+  --astro-code-token-punctuation: #9aa5b1;
+  --astro-code-token-link: #6db3ff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
@@ -39,6 +50,14 @@
     --text: #f0ece3; --text-dim: #9a958a;
     --accent: #f97316; --accent-bright: #fb923c;
     --accent-cool: #38bdf8; --accent-cool-bright: #7dd3fc;
+    --astro-code-token-comment: #8a8f98;
+    --astro-code-token-string: #5fd38d;
+    --astro-code-token-string-expression: #5fd38d;
+    --astro-code-token-constant: #5fd38d;
+    --astro-code-token-keyword: #e37bd4;
+    --astro-code-token-function: #6db3ff;
+    --astro-code-token-punctuation: #9aa5b1;
+    --astro-code-token-link: #6db3ff;
     color-scheme: dark;
   }
 }

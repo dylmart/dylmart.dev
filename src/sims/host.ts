@@ -1,5 +1,10 @@
-import type { Sim2D, SimView } from './types';
+import type { Sim2D, SimView, SimPointerEvent } from './types';
 import { createPlot } from './plot';
+
+/** pure held-state transition, factored out so it's testable without DOM/jsdom */
+export function pointerStateReducer(type: SimPointerEvent['type'], held: boolean): boolean {
+  return type === 'down' ? true : type === 'move' ? held : false;
+}
 
 export class FixedStepper {
   private acc = 0;
@@ -34,6 +39,34 @@ export function mountSim(
 
   const stepper = new FixedStepper(sim.dt, () => sim.advance(sim.dt));
   let running = false, last = 0, raf = 0;
+
+  // Pointer input: listeners attach to the canvas element itself, which is
+  // swapped out (not reused) across Astro ClientRouter soft navigations, so
+  // there's nothing to leak and no extra teardown beyond the isConnected
+  // guard already used by the RAF loop.
+  if (sim.onPointer) {
+    canvas.style.touchAction = 'none';
+    let held = false;
+    const handlePointer = (type: SimPointerEvent['type'], e: PointerEvent) => {
+      held = pointerStateReducer(type, held);
+      // canvas is CSS width:100%, so its clientWidth/Height can drift from
+      // the mount-time view (resize, rotation) while offsetX/Y arrive in the
+      // NEW CSS-px space; rescale into the view's coordinate space so hit
+      // tests against world-mapped positions stay aligned.
+      const scaleX = canvas.clientWidth ? view.w / canvas.clientWidth : 1;
+      const scaleY = canvas.clientHeight ? view.h / canvas.clientHeight : 1;
+      const ev: SimPointerEvent = { type, x: e.offsetX * scaleX, y: e.offsetY * scaleY, held };
+      const redraw = sim.onPointer!(ev, view);
+      if (redraw) sim.draw(ctx, view);
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      handlePointer('down', e);
+    });
+    canvas.addEventListener('pointermove', (e) => handlePointer('move', e));
+    canvas.addEventListener('pointerup', (e) => handlePointer('up', e));
+    canvas.addEventListener('pointercancel', (e) => handlePointer('up', e));
+  }
 
   function frame(t: number) {
     if (!running) return;

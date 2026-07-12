@@ -24,10 +24,10 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 9 published sims', async ({ page }) => {
+  test('index lists exactly the 8 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(9);
-    await expect(page.locator('.sim-card', { hasText: 'Pi Collisions' })).toBeVisible();
+    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
   test('unpublished sims have no page', async ({ page }) => {
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(8); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9);
+    await expect(page.locator('.sim-card')).toHaveCount(8);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -164,6 +164,7 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     await expect(page.locator('[data-act="toggle"]')).toBeVisible();
     await expect(page.locator('[data-act="reset"]')).toBeVisible();
     await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // graph cut per Dylan
     expect(errors).toEqual([]);
   });
 
@@ -175,6 +176,22 @@ test.describe('2d-motion (ported to Canvas2D)', () => {
     const a = await snap();
     await page.waitForTimeout(700);
     expect(await snap()).not.toBe(a); // pixels changed => sim is running
+  });
+
+  test('changing a launch param (v0y) rebuilds the sim and it still animates', async ({ page }) => {
+    await page.goto('/projects/sims/2d-motion/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+    const selects = page.locator('.sim-params select');
+    await expect(selects).toHaveCount(3); // v0x, v0y, ay
+    await selects.nth(1).selectOption('8'); // v0y: 5 -> 8
+    // a param change pauses and rebuilds the sim (fresh instance), so it
+    // needs an explicit Play click to resume animating.
+    await page.locator('[data-act="toggle"]').click();
+    const snap = () => canvas.screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a); // pixels changed => sim is running with the new param
   });
 });
 
@@ -202,6 +219,32 @@ test.describe('gravitation-2point (ported to Canvas2D)', () => {
     const a = await snap();
     await page.waitForTimeout(700);
     expect(await snap()).not.toBe(a); // pixels changed => sim is running
+  });
+});
+
+test.describe('gravitation-2point-gs (WebGL original, vendored textures)', () => {
+  test('glowscript sim boots on click', async ({ page }) => {
+    await page.goto('/projects/sims/gravitation-2point-gs/');
+    await expect(page.locator('#glowscript, .glowscript')).toHaveCount(0); // nothing heavy pre-click
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test('booting the sim makes no request to a non-local host (planet textures are vendored)', async ({ page }) => {
+    await page.goto('/projects/sims/gravitation-2point-gs/');
+    const externalRequests: string[] = [];
+    page.on('request', (req) => {
+      const host = new URL(req.url()).hostname;
+      if (host !== '127.0.0.1' && host !== 'localhost') externalRequests.push(req.url());
+    });
+
+    await page.getByRole('button', { name: /run simulation/i }).click();
+    await expect(page.locator('.glowscript canvas').first()).toBeVisible({ timeout: 15000 });
+    // Textures load asynchronously as the sim boots (scene.waitfor("textures"));
+    // give them a moment to fire after the canvas itself appears.
+    await page.waitForTimeout(1000);
+
+    expect(externalRequests).toEqual([]);
   });
 });
 
@@ -281,7 +324,133 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(9);
+    await expect(page.locator('.sim-card')).toHaveCount(8);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
+  });
+});
+
+test.describe('electric-field-array (ported to Canvas2D, draggable charges)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/electric-field-array/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toHaveCount(0); // static sim opts out of speed
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // static field has no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('drag-to-aim then soft-nav away and back boots clean (no leaked pointer state)', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/2d-motion/');
+    const canvas2d = page.locator('.sim2d .sim-main');
+    await canvas2d.scrollIntoViewIfNeeded();
+    const box = (await canvas2d.boundingBox())!;
+    // a short drag on the canvas (aim gesture), then in-app navigation
+    await page.mouse.move(box.x + 60, box.y + box.height - 60);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 120, box.y + box.height - 120, { steps: 5 });
+    await page.mouse.up();
+    await page.getByRole('link', { name: /all simulations/i }).click();
+    await expect(page.locator('.sim-card')).toHaveCount(8);
+    await page.locator('.sim-card', { hasText: 'Projectile Motion Playground' }).click();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    // still animates after the round trip
+    const snap = () => page.locator('.sim2d .sim-main').screenshot().then((b) => b.toString('base64'));
+    const a = await snap();
+    await page.waitForTimeout(700);
+    expect(await snap()).not.toBe(a);
+    expect(errors).toEqual([]);
+  });
+
+  test('dragging a charge updates the rendered field while paused', async ({ page }) => {
+    await page.goto('/projects/sims/electric-field-array/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    // Pause first: the field is static (advance() is a no-op), so pausing
+    // guarantees the drag itself is the only possible source of a pixel
+    // diff, and it also exercises the host's redraw-while-paused path
+    // (onPointer returning true forces an immediate sim.draw even with the
+    // RAF loop stopped).
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    // A canvas .screenshot() call auto-scrolls its target into view, which
+    // would otherwise shift the page between measuring boundingBox() and the
+    // first screenshot below and throw off every subsequent mouse coordinate.
+    // Scrolling once, up front, keeps the box and the mouse math in sync.
+    await canvas.scrollIntoViewIfNeeded();
+
+    // Map charge 1's world position (0, 2) to screen px using the same
+    // square-aspect mapping electric-field-array.ts uses internally:
+    // scale = min(w,h) / 14, origin at canvas center, y flipped.
+    const box = (await canvas.boundingBox())!;
+    const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+    const scale = Math.min(dims.w, dims.h) / 14;
+    const chargeX = box.x + dims.w / 2;
+    const chargeY = box.y + dims.h / 2 - 2 * scale;
+
+    const before = await canvas.screenshot();
+    await page.mouse.move(chargeX, chargeY);
+    await page.mouse.down();
+    await page.mouse.move(chargeX + 60, chargeY, { steps: 5 });
+    await page.mouse.up();
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
+  });
+
+  test('drag survives a viewport resize (pointer coords stay in mount-time space)', async ({ page }) => {
+    // The canvas is CSS width:100%, so a resize/rotation changes its
+    // clientWidth/Height, but host.ts captures `view.w/h` once at mount.
+    // Pointer events' offsetX/Y arrive in the NEW CSS-px space, so the host
+    // must rescale them into the mount-time view before sims hit-test
+    // against it, or drags misalign after any resize.
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto('/projects/sims/electric-field-array/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    await canvas.scrollIntoViewIfNeeded();
+    const mountDims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+    const mountScale = Math.min(mountDims.w, mountDims.h) / 14;
+    // world (3, -2): the positive charge, INITIAL_CHARGES[1] in electric-field-array.ts.
+    const pxMount = mountDims.w / 2 + 3 * mountScale;
+    const pyMount = mountDims.h / 2 + 2 * mountScale;
+
+    // Resize to a meaningfully different viewport; the mounted sim's `view`
+    // (captured once at mount) does not follow.
+    await page.setViewportSize({ width: 700, height: 900 });
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+    const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+
+    // Screen offset that lands on the charge in the CURRENT (post-resize)
+    // CSS-px space: scale the mount-space pixel by how much the canvas has
+    // grown/shrunk since mount, matching what host.ts is expected to invert.
+    const chargeX = box.x + pxMount * (dims.w / mountDims.w);
+    const chargeY = box.y + pyMount * (dims.h / mountDims.h);
+
+    const before = await canvas.screenshot();
+    await page.mouse.move(chargeX, chargeY);
+    await page.mouse.down();
+    await page.mouse.move(chargeX + 40, chargeY, { steps: 5 });
+    await page.mouse.up();
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
   });
 });

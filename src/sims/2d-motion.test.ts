@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import createSim, { stateOf } from './2d-motion';
+import createSim, { stateOf, closedFormPos, aimFromDrag } from './2d-motion';
 
 describe('2d.motion physics', () => {
   it('matches the semi-implicit Euler closed form after 500 steps (t=5)', () => {
@@ -7,10 +7,9 @@ describe('2d.motion physics', () => {
     for (let i = 0; i < 500; i++) sim.advance(sim.dt);
     const { pos, t } = stateOf(sim);
     const n = 500, dt = 0.01;
-    const closed = (p0: number, v0: number, a: number) => p0 + n * dt * v0 + a * dt * dt * (n * (n + 1) / 2);
     expect(t).toBeCloseTo(5, 9);
-    expect(pos.x).toBeCloseTo(closed(0, 3, -3), 9);
-    expect(pos.y).toBeCloseTo(closed(0, 5, 4), 9);
+    expect(pos.x).toBeCloseTo(closedFormPos(0, 3, -3, n, dt), 9);
+    expect(pos.y).toBeCloseTo(closedFormPos(0, 5, 4, n, dt), 9);
   });
   it('stops at t=5', () => {
     const sim = createSim({});
@@ -36,5 +35,38 @@ describe('2d.motion physics', () => {
     expect(sim.done!()).toBe(true);
     expect(drained.length).toBe(500);
     expect(drained[drained.length - 1].x).toBeCloseTo(4.99, 9);
+  });
+  it('params default to the original constants (pins stay valid)', () => {
+    const sim = createSim({});           // no params -> original behavior
+    const sim2 = createSim({ v0x: 3, v0y: 5, ay: 4 });
+    for (let i = 0; i < 100; i++) { sim.advance(sim.dt); sim2.advance(sim2.dt); }
+    expect(stateOf(sim2).pos).toEqual(stateOf(sim).pos);
+  });
+  it('drag-to-aim sets v0 from the drag vector and resets the run', () => {
+    const sim = createSim({});
+    // drag from ball screen pos to +40px right, -80px up at 10 px/world-unit
+    // (aimFromDrag is the exported pure helper; scale = pxPerUnit, y flipped)
+    expect(aimFromDrag({ dx: 40, dy: -80 }, 10)).toEqual({ v0x: 4, v0y: 8 });
+  });
+  it('non-default params change the trajectory (params are actually wired)', () => {
+    const simA = createSim({});
+    const simB = createSim({ v0y: 8 });
+    for (let i = 0; i < 200; i++) {
+      simA.advance(simA.dt);
+      simB.advance(simB.dt);
+    }
+    const stateA = stateOf(simA);
+    const stateB = stateOf(simB);
+
+    // (a) simB's y position should be greater than simA's (greater initial velocity)
+    expect(stateB.pos.y).toBeGreaterThan(stateA.pos.y);
+
+    // (b) simB's position matches closed form with v0y=8 to 9 decimal places
+    const n = 200;
+    const dt = 0.01;
+    expect(stateB.pos.y).toBeCloseTo(closedFormPos(0, 8, 4, n, dt), 9);
+
+    // x positions are identical (same v0x and ax across both)
+    expect(stateB.pos.x).toBeCloseTo(stateA.pos.x, 9);
   });
 });

@@ -68,8 +68,9 @@ const { slug, hasPlot } = Astro.props;
     for (const p of mod.params ?? []) params[p.key] = p.initial;
 
     const toggle = root.querySelector<HTMLButtonElement>('[data-act="toggle"]')!;
+    let sim!: ReturnType<typeof mod.default>;
     const build = () => mountSim(
-      mod.default(params),
+      (sim = mod.default(params)),
       root.querySelector<HTMLCanvasElement>('.sim-main')!,
       root.querySelector<HTMLCanvasElement>('.sim-plot'),
       (running) => { toggle.textContent = running ? '❚❚ Pause' : '▶ Play'; },
@@ -79,8 +80,10 @@ const { slug, hasPlot } = Astro.props;
     toggle.addEventListener('click', () =>
       toggle.textContent!.includes('Pause') ? h.pause() : h.play());
     root.querySelector('[data-act="reset"]')!.addEventListener('click', () => h.reset());
-    root.querySelector<HTMLSelectElement>('[data-act="speed"]')!
-      .addEventListener('change', (e) => h.setSpeed(Number((e.target as HTMLSelectElement).value)));
+    const speedSel = root.querySelector<HTMLSelectElement>('[data-act="speed"]')!;
+    // Static sims (e.g. the draggable field array) opt out of the speed control.
+    if (sim.hideSpeedControl) speedSel.remove();
+    else speedSel.addEventListener('change', (e) => h.setSpeed(Number((e.target as HTMLSelectElement).value)));
 
     // param selects (e.g. PiCollisions mass ratio)
     const holder = root.querySelector<HTMLElement>('.sim-params')!;

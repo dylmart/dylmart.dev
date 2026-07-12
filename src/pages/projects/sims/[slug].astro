@@ -19,14 +19,14 @@ const source = await readFile(`src/content/sims/${sim.id}/source.py`, 'utf8');
 <Layout title={`${sim.data.title} — dylmart_`} description={sim.data.summary}>
   <section class="band">
     <SectionLabel num="02" title={sim.data.title} />
-    <p class="hud">// WEB VPYTHON {sim.data.glowscript_version} · {sim.data.folder_origin} · ALLAN HANCOCK COLLEGE PHYSICS</p>
+    <p class="hud">// WEB VPYTHON {sim.data.glowscript_version}{sim.data.original_name && ` · ORIGINALLY “${sim.data.original_name}”`} · {sim.data.folder_origin} · ALLAN HANCOCK COLLEGE PHYSICS</p>
     <div class="prose"><Content /></div>
 
     {sim.data.render === 'glowscript' && (
       <SimGlowScript slug={sim.id} thumbSrc={`/sim-thumbs/${sim.id}.png`} title={sim.data.title} />
     )}
     {sim.data.render === 'canvas2d' && (
-      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', '2d-motion', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
+      <SimCanvas2D slug={sim.id} hasPlot={['pi-collisions', 'gravitation-2point', 'rope-oscillations-sim'].includes(sim.id)} />
     )}
 
     <details class="sim-source">
