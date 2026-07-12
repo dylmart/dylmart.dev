@@ -13,11 +13,6 @@ coil_radius = 5
 
 #box
 radius = 0.25
-cylinder_bounds = cylinder(pos = vec(-15,0,0),
-                           axis  = vec(30,0,0),
-                           radius = 10,
-                           color = color.cyan,
-                           opacity = 0.05)
 ring1 = ring(pos = vec(-15,0,0),
              radius = 10,
              thickness = radius,

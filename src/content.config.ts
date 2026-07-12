@@ -9,6 +9,8 @@ const sims = defineCollection({
     publish: z.boolean(),
     render: z.enum(['canvas2d', 'glowscript']),
     glowscript_version: z.string(),
+    /** the program's name on glowscript.org, preserved on the page per Dylan */
+    original_name: z.string().optional(),
     folder_origin: z.string(),
     sort: z.number().default(99),
   }),

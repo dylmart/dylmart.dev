@@ -1,9 +1,10 @@
 ---
-title: "Electric Potential Array"
+title: "Electric Potential Map"
 summary: "Physics simulation from Physics163."
 publish: true
 render: glowscript
 glowscript_version: "3.2"
+original_name: "ElectricPotentialArray"
 folder_origin: "Physics163"
 sort: 7
 ---

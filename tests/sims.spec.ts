@@ -27,7 +27,7 @@ test.describe('sims section', () => {
   test('index lists exactly the 9 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
     await expect(page.locator('.sim-card')).toHaveCount(9);
-    await expect(page.locator('.sim-card', { hasText: 'Pi Collisions' })).toBeVisible();
+    await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
   test('unpublished sims have no page', async ({ page }) => {
