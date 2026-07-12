@@ -41,7 +41,7 @@ const CANVAS2D = new Set(['pi-collisions', '2d-motion', 'rope-oscillations-sim',
 const PUBLISH = new Set([
   ...CANVAS2D,
   'electric-field-array', 'electric-potential-array', 'field-v-potential-array',
-  'many-particles-in-bottle', 'particle-in-a-bottle',
+  'many-particles-in-bottle',
 
 ]);
 // Showpieces first on the index page, in this order:
