@@ -144,8 +144,17 @@ function pxToWorld(px: number, py: number, view: SimView): Vec2 {
 const factory = (_p: Record<string, number>): Sim2D => {
   let state = makeState();
 
-  // Live drag-to-fling gesture state (screen px), or null when not dragging.
-  let drag: { current: { x: number; y: number } } | null = null;
+  // Live pointer gesture (screen px), or null when idle:
+  //  - 'probe': drag started on the probe; release re-flings it.
+  //  - 'planet': drag started on empty space (Dylan's request: planets used
+  //    to spawn at rest and just fall into the sun); release LAUNCHES a new
+  //    planet from the press point with the drag vector as velocity. A plain
+  //    click (drag under CLICK_EPS_PX) still drops one at rest.
+  type Gesture =
+    | { kind: 'probe'; current: { x: number; y: number } }
+    | { kind: 'planet'; origin: Vec2; originPx: { x: number; y: number }; current: { x: number; y: number } };
+  let gesture: Gesture | null = null;
+  const CLICK_EPS_PX = 6;
 
   const sim: Sim2D = {
     dt: DT,
@@ -205,9 +214,17 @@ const factory = (_p: Record<string, number>): Sim2D => {
         ctx.stroke();
       }
 
-      // live aim line while a drag-to-fling gesture is in progress
-      if (drag) {
-        drawArrow(ctx, probePx.px, probePx.py, drag.current.x, drag.current.y, view.css('--accent-cool'), 2, 6);
+      // live aim feedback while a gesture is in progress
+      if (gesture?.kind === 'probe') {
+        drawArrow(ctx, probePx.px, probePx.py, gesture.current.x, gesture.current.y, view.css('--accent-cool'), 2, 6);
+      } else if (gesture?.kind === 'planet') {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = view.css('--neutral');
+        ctx.beginPath();
+        ctx.arc(gesture.originPx.x, gesture.originPx.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        drawArrow(ctx, gesture.originPx.x, gesture.originPx.y, gesture.current.x, gesture.current.y, view.css('--accent-cool'), 2, 6);
       }
 
       ctx.font = '12px "Space Mono", monospace';
@@ -220,52 +237,59 @@ const factory = (_p: Record<string, number>): Sim2D => {
       stateRegistry.set(sim, state);
     },
 
-    // down within DRAG_HIT_RADIUS_PX of the probe starts a drag-to-fling
-    // gesture; down anywhere else drops a planet at the pointer's world
-    // position (capped at MAX_PLANETS, oldest evicted first). move
-    // live-updates the aim line. up commits flingFromDrag's mapping as the
-    // probe's new velocity. cancel aborts the drag without flinging.
+    // down within DRAG_HIT_RADIUS_PX of the probe starts a probe re-fling;
+    // down anywhere else starts a planet-launch drag at the press point
+    // (capped at MAX_PLANETS, oldest evicted first). move live-updates the
+    // aim feedback. up commits flingFromDrag's mapping as the probe's or the
+    // new planet's velocity. cancel aborts either gesture with no effect.
     onPointer(ev: SimPointerEvent, view: SimView) {
       if (ev.type === 'down') {
         const probePx = worldToPx(state.probe.x, state.probe.y, view);
         const dist = Math.hypot(ev.x - probePx.px, ev.y - probePx.py);
         if (state.probe.alive && dist <= DRAG_HIT_RADIUS_PX) {
-          drag = { current: { x: ev.x, y: ev.y } };
+          gesture = { kind: 'probe', current: { x: ev.x, y: ev.y } };
           return true;
         }
         const world = pxToWorld(ev.x, ev.y, view);
-        // Reject drops on/near the sun: softened gravity at near-zero range
-        // slingshots the planet off-screen where it silently eats a slot.
+        // Reject launches from on/near the sun: softened gravity at
+        // near-zero range slingshots the planet off-screen where it
+        // silently eats a slot.
         if (Math.hypot(world.x - SUN.x, world.y - SUN.y) < 2) return true;
-        state.bodies.push({ x: world.x, y: world.y, vx: 0, vy: 0, m: PLANET_M, r: PLANET_R });
-        if (state.bodies.length > MAX_PLANETS) state.bodies.shift();
+        gesture = { kind: 'planet', origin: world, originPx: { x: ev.x, y: ev.y }, current: { x: ev.x, y: ev.y } };
         return true;
       }
       if (ev.type === 'move') {
-        if (!drag) return;
-        drag.current = { x: ev.x, y: ev.y };
+        if (!gesture) return;
+        gesture.current = { x: ev.x, y: ev.y };
         return true;
       }
       if (ev.type === 'up') {
-        if (!drag) return;
-        // Probe crashed mid-drag: abort the gesture instead of flinging a corpse.
-        if (!state.probe.alive) { drag = null; return true; }
-        const probePx = worldToPx(state.probe.x, state.probe.y, view);
-        const dx = drag.current.x - probePx.px;
-        const dy = drag.current.y - probePx.py;
-        drag = null;
+        if (!gesture) return;
+        const g = gesture;
+        gesture = null;
         const pxPerUnit = view.w / WORLD;
-        const v = flingFromDrag({ dx, dy }, pxPerUnit);
-        state.probe.vx = v.x;
-        state.probe.vy = v.y;
+        if (g.kind === 'probe') {
+          // Probe crashed mid-drag: abort instead of flinging a corpse.
+          if (!state.probe.alive) return true;
+          const probePx = worldToPx(state.probe.x, state.probe.y, view);
+          const v = flingFromDrag({ dx: g.current.x - probePx.px, dy: g.current.y - probePx.py }, pxPerUnit);
+          state.probe.vx = v.x;
+          state.probe.vy = v.y;
+          return true;
+        }
+        // planet launch: drag vector -> initial velocity (same mapping as the
+        // probe fling); a near-click spawns it at rest.
+        const dx = g.current.x - g.originPx.x;
+        const dy = g.current.y - g.originPx.y;
+        const v = Math.hypot(dx, dy) < CLICK_EPS_PX ? { x: 0, y: 0 } : flingFromDrag({ dx, dy }, pxPerUnit);
+        state.bodies.push({ x: g.origin.x, y: g.origin.y, vx: v.x, vy: v.y, m: PLANET_M, r: PLANET_R });
+        if (state.bodies.length > MAX_PLANETS) state.bodies.shift();
         return true;
       }
       if (ev.type === 'cancel') {
-        // Abort the in-progress fling gesture entirely: discard the pending
-        // drag without touching the probe's velocity (unlike 'up', which
-        // commits). Redraw so the aim line disappears.
-        if (!drag) return;
-        drag = null;
+        // Abort the in-progress gesture entirely: no fling, no planet.
+        if (!gesture) return;
+        gesture = null;
         return true;
       }
     },

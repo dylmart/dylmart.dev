@@ -59,6 +59,7 @@ describe('orbit-sandbox physics', () => {
     // world (5, 0) maps to some px; drop there (far from the default probe at (12,0)).
     const px = { x: view.w / 2 + (5 / 40) * view.w, y: view.h / 2 };
     sim.onPointer!({ type: 'down', x: px.x, y: px.y, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px.x, y: px.y, held: false }, view);
     const before = orbitState(sim).bodies[0]!;
     expect(before.x).toBeCloseTo(5, 6);
     expect(before.vx).toBe(0);
@@ -77,6 +78,7 @@ describe('orbit-sandbox physics', () => {
       const wx = 3 + i * 0.4;
       const px = view.w / 2 + (wx / 40) * view.w;
       sim.onPointer!({ type: 'down', x: px, y: view.h / 2 - 100, held: true }, view);
+      sim.onPointer!({ type: 'up', x: px, y: view.h / 2 - 100, held: false }, view);
     }
     const { bodies } = orbitState(sim);
     expect(bodies.length).toBe(8);
@@ -120,6 +122,7 @@ describe('orbit-sandbox physics', () => {
     const px = view.w / 2 + (wx / 40) * view.w;
     const py = view.h / 2 - (wy / 40) * view.h;
     sim.onPointer!({ type: 'down', x: px, y: py, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px, y: py, held: false }, view);
     for (let i = 0; i < 4000 && orbitState(sim).probe.alive; i++) sim.advance(sim.dt);
     expect(orbitState(sim).probe.alive).toBe(false);
     const frozen = orbitState(sim).probe;
@@ -128,5 +131,31 @@ describe('orbit-sandbox physics', () => {
     expect(orbitState(sim).probe).toEqual(frozen);
     // ...but the planet (attracted by the sun) has kept moving.
     expect(orbitState(sim).bodies[0]!.vx !== 0 || orbitState(sim).bodies[0]!.vy !== 0).toBe(true);
+  });
+
+  it('drag on empty space LAUNCHES a planet with the drag vector (Dylan request)', () => {
+    const sim = createSim({});
+    const view = { w: 640, h: 640, css: () => '' };
+    // press at world (-8, 0), drag +40px screen-x and -20px screen-y
+    const px = view.w / 2 + (-8 / 40) * view.w;
+    const py = view.h / 2;
+    sim.onPointer!({ type: 'down', x: px, y: py, held: true }, view);
+    sim.onPointer!({ type: 'move', x: px + 40, y: py - 20, held: true }, view);
+    sim.onPointer!({ type: 'up', x: px + 40, y: py - 20, held: false }, view);
+    const b = orbitState(sim).bodies[0]!;
+    const pxPerUnit = view.w / 40;
+    expect(b.x).toBeCloseTo(-8, 6); // spawns at the PRESS point, not the release point
+    expect(b.vx).toBeCloseTo((40 / pxPerUnit) * 3, 6);
+    expect(b.vy).toBeCloseTo((20 / pxPerUnit) * 3, 6); // screen-up => +y world
+  });
+
+  it('cancel aborts a planet-launch drag: no planet is spawned', () => {
+    const sim = createSim({});
+    const view = { w: 640, h: 640, css: () => '' };
+    const px = view.w / 2 + (-8 / 40) * view.w;
+    sim.onPointer!({ type: 'down', x: px, y: view.h / 2, held: true }, view);
+    sim.onPointer!({ type: 'move', x: px + 60, y: view.h / 2, held: true }, view);
+    sim.onPointer!({ type: 'cancel', x: px + 60, y: view.h / 2, held: false }, view);
+    expect(orbitState(sim).bodies.length).toBe(0);
   });
 });
