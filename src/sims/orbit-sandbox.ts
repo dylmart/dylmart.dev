@@ -229,7 +229,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
       if (ev.type === 'down') {
         const probePx = worldToPx(state.probe.x, state.probe.y, view);
         const dist = Math.hypot(ev.x - probePx.px, ev.y - probePx.py);
-        if (dist <= DRAG_HIT_RADIUS_PX) {
+        if (state.probe.alive && dist <= DRAG_HIT_RADIUS_PX) {
           drag = { current: { x: ev.x, y: ev.y } };
           return true;
         }
