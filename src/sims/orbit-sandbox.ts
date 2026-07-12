@@ -211,7 +211,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
       }
 
       ctx.font = '12px "Space Mono", monospace';
-      ctx.fillStyle = view.css('--text-dim');
+      ctx.fillStyle = view.css('--sim-canvas-fg-dim');
       ctx.fillText(`planets: ${state.bodies.length}`, 10, 18);
     },
 
@@ -234,6 +234,9 @@ const factory = (_p: Record<string, number>): Sim2D => {
           return true;
         }
         const world = pxToWorld(ev.x, ev.y, view);
+        // Reject drops on/near the sun: softened gravity at near-zero range
+        // slingshots the planet off-screen where it silently eats a slot.
+        if (Math.hypot(world.x - SUN.x, world.y - SUN.y) < 2) return true;
         state.bodies.push({ x: world.x, y: world.y, vx: 0, vy: 0, m: PLANET_M, r: PLANET_R });
         if (state.bodies.length > MAX_PLANETS) state.bodies.shift();
         return true;
@@ -245,6 +248,8 @@ const factory = (_p: Record<string, number>): Sim2D => {
       }
       if (ev.type === 'up') {
         if (!drag) return;
+        // Probe crashed mid-drag: abort the gesture instead of flinging a corpse.
+        if (!state.probe.alive) { drag = null; return true; }
         const probePx = worldToPx(state.probe.x, state.probe.y, view);
         const dx = drag.current.x - probePx.px;
         const dy = drag.current.y - probePx.py;

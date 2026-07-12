@@ -56,7 +56,7 @@ export function createPlot(canvas: HTMLCanvasElement, opts: { title: string; equ
     ctx.clearRect(0, 0, w, h);
     ctx.strokeStyle = css('--neutral'); ctx.lineWidth = 1;
     ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
-    ctx.fillStyle = css('--text-dim');
+    ctx.fillStyle = css('--sim-canvas-fg-dim');
     ctx.font = '10px "Space Mono", monospace';
     ctx.fillText(opts.title.toUpperCase(), 8, 14);
     if (pts.length < 2) return;

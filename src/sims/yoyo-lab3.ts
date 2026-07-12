@@ -195,7 +195,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
 
       // mono readouts
       ctx.font = '12px "Space Mono", monospace';
-      ctx.fillStyle = view.css('--text-dim');
+      ctx.fillStyle = view.css('--sim-canvas-fg-dim');
       ctx.fillText(`t = ${state.t.toFixed(2)} s`, 10, 18);
       ctx.fillText(`y = ${state.y.toFixed(3)} m`, 10, 34);
       ctx.fillText(`ω = ${state.omega.toFixed(2)} rad/s`, 10, 50);
