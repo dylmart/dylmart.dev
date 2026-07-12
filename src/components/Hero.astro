@@ -2,11 +2,46 @@
 import { SITE } from '../site.config';
 ---
 <section class="hero grain">
-  <div class="stars" aria-hidden="true">
-    {[[8, 20, 0], [18, 60, 1], [30, 15, 2], [44, 70, 0.5], [55, 30, 1.4], [64, 78, 2.6], [78, 64, 0.8], [90, 12, 1.9]].map(
-      ([x, y, d]) => <i style={`left:${x}%; top:${y}%; animation-delay:${d}s`} />
-    )}
-  </div>
+  {/* Dylan's cusp signs: Taurus on the left, Gemini on the right. Stick
+      figures follow the real asterisms; Aldebaran and Pollux get the accent
+      tint because both really are orange giants. */}
+  <svg class="constellation taurus" viewBox="0 0 100 80" aria-hidden="true">
+    <g class="lines">
+      <polyline points="8,4 40,24 48,31 56,38" />
+      <polyline points="56,38 49,46 43,51 4,30" />
+      <polyline points="56,38 68,58 82,68" />
+    </g>
+    <g class="stars">
+      <circle cx="8" cy="4" r="1.6" />
+      <circle cx="4" cy="30" r="1.3" />
+      <circle cx="40" cy="24" r="1.1" />
+      <circle cx="48" cy="31" r="1.1" />
+      <circle cx="56" cy="38" r="1.3" />
+      <circle cx="49" cy="46" r="1" />
+      <circle class="giant" cx="43" cy="51" r="2.2" />
+      <circle cx="68" cy="58" r="1" />
+      <circle cx="82" cy="68" r="1.1" />
+    </g>
+  </svg>
+  <svg class="constellation gemini" viewBox="0 0 70 80" aria-hidden="true">
+    <g class="lines">
+      <polyline points="22,4 24,18 18,36 14,52 8,64" />
+      <polyline points="44,10 44,24 46,38 42,52 36,66" />
+      <polyline points="24,18 44,24" />
+    </g>
+    <g class="stars">
+      <circle cx="22" cy="4" r="1.6" />
+      <circle class="giant" cx="44" cy="10" r="2.2" />
+      <circle cx="24" cy="18" r="1" />
+      <circle cx="44" cy="24" r="1" />
+      <circle cx="18" cy="36" r="1.1" />
+      <circle cx="46" cy="38" r="1.1" />
+      <circle cx="14" cy="52" r="1" />
+      <circle cx="42" cy="52" r="1" />
+      <circle cx="8" cy="64" r="1.3" />
+      <circle cx="36" cy="66" r="1.5" />
+    </g>
+  </svg>
   <div class="art" aria-hidden="true">
     <div class="ring back">
       <div class="orbiter">
@@ -28,11 +63,24 @@ import { SITE } from '../site.config';
 
 <style>
   .hero { position: relative; overflow: hidden; padding: 4rem 1.75rem 5rem; }
-  .stars i {
-    position: absolute; width: 2px; height: 2px; border-radius: 50%;
-    background: var(--text); animation: twinkle 4s ease-in-out infinite;
+  .constellation {
+    position: absolute; pointer-events: none; opacity: 0.5;
   }
-  @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+  .constellation.taurus { left: clamp(0.5rem, 3vw, 3rem); top: 6%; width: clamp(110px, 18vw, 190px); }
+  .constellation.gemini { right: clamp(1rem, 6vw, 6rem); bottom: 6%; width: clamp(90px, 15vw, 150px); }
+  @media (max-width: 560px) {
+    /* no clear sky for the bull on phones; the twins carry the detail */
+    .constellation.taurus { display: none; }
+  }
+  .constellation .lines polyline {
+    fill: none; stroke: var(--neutral); stroke-width: 1; vector-effect: non-scaling-stroke;
+    opacity: 0.55;
+  }
+  .constellation .stars circle { fill: var(--text); animation: twinkle 4s ease-in-out infinite; }
+  .constellation .stars circle:nth-child(2n) { animation-delay: 1.3s; }
+  .constellation .stars circle:nth-child(3n) { animation-delay: 2.4s; }
+  .constellation .stars circle.giant { fill: var(--accent); animation-delay: 0.6s; }
+  @keyframes twinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
   /* One container owns the composition: every piece is centered on it,
      so planet, orbit line, and moving dot stay aligned at every width. */
   .art {
