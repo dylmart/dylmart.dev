@@ -4,6 +4,7 @@ import createSim, { stepFlock, flockState, perceives } from './boids-flocking';
 const MIN_SPEED = 8;
 const MAX_SPEED = 24;
 const DT = 1 / 60;
+const HUNT_PERIOD = 8;
 
 describe('boids-flocking physics', () => {
   // N=500 makes the multi-hundred-step pins CPU-heavy; they get explicit
@@ -110,9 +111,10 @@ describe('boids-flocking physics', () => {
       t: 0,
       // hawk parked far from the pair (>FLEE_R away) so its flee force is
       // zero and the pin below isolates the separation direction.
-      hawk: { x: 60, y: 60, vx: 30.72, vy: 0, theta: 0 },
+      hawk: { x: 60, y: 60, vx: 30.72, vy: 0, theta: 0, hunting: false },
       hawkPhase1: 0,
       hawkPhase2: 0,
+      huntOffset: 0,
     });
     const a = mkState();
     const b = mkState();
@@ -178,6 +180,39 @@ describe('boids-flocking physics', () => {
         sim.advance(sim.dt);
         expect(Math.abs(speedOf() - initial)).toBeLessThan(1e-6);
       }
+    });
+
+    it('both hunts and ambles within the first 16 sim-seconds', { timeout: 60000 }, () => {
+      const sim = createSim({});
+      let sawHunt = false;
+      let sawAmble = false;
+      const steps = Math.round(16 / DT);
+      for (let i = 0; i < steps; i++) {
+        sim.advance(sim.dt);
+        if (flockState(sim).hawk.hunting) sawHunt = true;
+        else sawAmble = true;
+      }
+      expect(sawHunt).toBe(true);
+      expect(sawAmble).toBe(true);
+    });
+
+    it('the hunt window follows its closed form: the mode repeats one period later', { timeout: 60000 }, () => {
+      // No magic constants tied to rng internals: record the per-step mode,
+      // find the first transition the state itself exhibits, then assert the
+      // mode at that step (and the step before it) recurs exactly one
+      // HUNT_PERIOD later.
+      const sim = createSim({});
+      const modes: boolean[] = [];
+      const steps = Math.round(16.5 / DT);
+      for (let i = 0; i < steps; i++) {
+        sim.advance(sim.dt);
+        modes.push(flockState(sim).hawk.hunting);
+      }
+      const first = modes.findIndex((m) => m !== modes[0]);
+      expect(first).toBeGreaterThan(0); // a transition happens within one period
+      const period = Math.round(HUNT_PERIOD / DT);
+      expect(modes[first + period]).toBe(modes[first]);
+      expect(modes[first - 1 + period]).toBe(modes[first - 1]);
     });
   });
 });

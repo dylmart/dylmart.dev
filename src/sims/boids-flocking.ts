@@ -35,7 +35,18 @@ const WANDER_MAG = 0.15 * MAX_FORCE;
 const HAWK_SPEED = 1.28 * MAX_SPEED; // 0.8 x the old strafe speed (1.6 x MAX_SPEED)
 const HAWK_TURN_A1 = 1.4, HAWK_TURN_W1 = 0.53; // rad/s amplitude, rad/s frequency
 const HAWK_TURN_A2 = 0.9, HAWK_TURN_W2 = 1.31; // incommensurate with W1 so the path never loops
-const HAWK_CENTROID_PULL = 0.3; // blend weight of the toward-flock unit vector before normalizing
+const HAWK_CENTROID_PULL = 0.3; // amble blend weight of the toward-flock unit vector before normalizing
+
+// Hunt windows: every HUNT_PERIOD sim-seconds the hawk spends HUNT_DURATION
+// locked on — the centroid-pull weight jumps to HAWK_HUNT_PULL so it visibly
+// drives at the flock (the wander sinusoids keep contributing, so the dive
+// still looks alive). huntOffset is drawn from the seeded rng in makeState so
+// different seeds hunt on different beats; the mode is a pure closed-form
+// function of state.t, keeping stepFlock rng-free. Cruise speed never
+// changes, only the heading blend.
+const HUNT_PERIOD = 8;
+const HUNT_DURATION = 2.5;
+const HAWK_HUNT_PULL = 0.9;
 
 const BOID_WID_RATIO = 2 / 3; // width/length aspect for the boid triangle
 const HAWK_LEN = 14;
@@ -51,7 +62,7 @@ export const params: ParamSpec[] = [
 interface Vec2 { x: number; y: number }
 interface Boid { x: number; y: number; vx: number; vy: number; phase: number }
 interface Predator { x: number; y: number }
-interface Hawk { x: number; y: number; vx: number; vy: number; theta: number }
+interface Hawk { x: number; y: number; vx: number; vy: number; theta: number; hunting: boolean }
 
 interface State {
   boids: Boid[];
@@ -60,6 +71,12 @@ interface State {
   hawk: Hawk;
   hawkPhase1: number;
   hawkPhase2: number;
+  huntOffset: number;
+}
+
+/** true when the hawk's periodic hunt window is open at sim time t */
+function isHunting(t: number, huntOffset: number): boolean {
+  return (t + huntOffset) % HUNT_PERIOD < HUNT_DURATION;
 }
 
 function wrapCoord(v: number): number {
@@ -118,9 +135,9 @@ function buildGrid(boids: Boid[]): number[][] {
 }
 
 // All randomness flows through mulberry32(seed): per boid x, y, heading,
-// wander phase (in that order), then the hawk's x, y, heading, and two turn
-// phases, all in a fixed order, so the same seed always yields the same
-// flock and the same hawk flight.
+// wander phase (in that order), then the hawk's x, y, heading, two turn
+// phases, and hunt offset, all in a fixed order, so the same seed always
+// yields the same flock and the same hawk flight.
 function makeState(seed: number): State {
   const rand = mulberry32(seed);
   const boids: Boid[] = [];
@@ -135,17 +152,19 @@ function makeState(seed: number): State {
   const hx = rand() * WORLD;
   const hy = rand() * WORLD;
   const theta = rand() * Math.PI * 2;
+  const hawkPhase1 = rand() * Math.PI * 2;
+  const hawkPhase2 = rand() * Math.PI * 2;
+  const huntOffset = rand() * HUNT_PERIOD; // seeds hunt on different beats
   const hawk: Hawk = {
     x: hx,
     y: hy,
     vx: Math.cos(theta) * HAWK_SPEED,
     vy: Math.sin(theta) * HAWK_SPEED,
     theta,
+    hunting: isHunting(0, huntOffset),
   };
-  const hawkPhase1 = rand() * Math.PI * 2;
-  const hawkPhase2 = rand() * Math.PI * 2;
 
-  return { boids, predator: null, t: 0, hawk, hawkPhase1, hawkPhase2 };
+  return { boids, predator: null, t: 0, hawk, hawkPhase1, hawkPhase2, huntOffset };
 }
 
 function clampMag(v: Vec2, max: number): Vec2 {
@@ -300,10 +319,14 @@ export function stepFlock(state: State): void {
   });
 
   // Hawk: turn the heading by two incommensurate sinusoids of sim time, then
-  // blend in a weak unit pull toward the flock centroid (mean wrapped
+  // blend in a unit pull toward the flock centroid (mean wrapped
   // displacement, so the pull is torus-correct) and renormalize to constant
-  // cruise speed. The blended direction's magnitude is at least
-  // 1 - HAWK_CENTROID_PULL > 0, so the normalization never divides by zero.
+  // cruise speed. During a hunt window the pull jumps from the amble weight
+  // to HAWK_HUNT_PULL so the hawk locks on and drives at the flock; the
+  // blended direction's magnitude is at least 1 - HAWK_HUNT_PULL > 0, so the
+  // normalization never divides by zero.
+  const hunting = isHunting(t, state.huntOffset);
+  const pull = hunting ? HAWK_HUNT_PULL : HAWK_CENTROID_PULL;
   const turn =
     HAWK_TURN_A1 * Math.sin(HAWK_TURN_W1 * t + state.hawkPhase1) +
     HAWK_TURN_A2 * Math.sin(HAWK_TURN_W2 * t + state.hawkPhase2);
@@ -318,8 +341,8 @@ export function stepFlock(state: State): void {
     }
     const md = Math.hypot(mx, my);
     if (md > 1e-9) {
-      dirX += HAWK_CENTROID_PULL * (mx / md);
-      dirY += HAWK_CENTROID_PULL * (my / md);
+      dirX += pull * (mx / md);
+      dirY += pull * (my / md);
     }
   }
   const dm = Math.hypot(dirX, dirY);
@@ -327,6 +350,7 @@ export function stepFlock(state: State): void {
   hawk.vy = (dirY / dm) * HAWK_SPEED;
   hawk.x = wrapCoord(hawk.x + hawk.vx * DT);
   hawk.y = wrapCoord(hawk.y + hawk.vy * DT);
+  hawk.hunting = hunting;
 
   state.t += DT;
 }
