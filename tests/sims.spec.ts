@@ -301,3 +301,59 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
+
+test.describe('electric-field-array (ported to Canvas2D, draggable charges)', () => {
+  test('sim canvas is visible with working controls, no unavailable message, no console errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
+
+    await page.goto('/projects/sims/electric-field-array/');
+    await expect(page.locator('.sim-unavailable')).toBeHidden();
+    await expect(page.locator('.sim2d .sim-main')).toBeVisible();
+    await expect(page.locator('.sim-controls')).toBeVisible();
+    await expect(page.locator('[data-act="toggle"]')).toBeVisible();
+    await expect(page.locator('[data-act="reset"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // static field has no plot
+    expect(errors).toEqual([]);
+  });
+
+  test('dragging a charge updates the rendered field while paused', async ({ page }) => {
+    await page.goto('/projects/sims/electric-field-array/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    // Pause first: the field is static (advance() is a no-op), so pausing
+    // guarantees the drag itself is the only possible source of a pixel
+    // diff, and it also exercises the host's redraw-while-paused path
+    // (onPointer returning true forces an immediate sim.draw even with the
+    // RAF loop stopped).
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    // A canvas .screenshot() call auto-scrolls its target into view, which
+    // would otherwise shift the page between measuring boundingBox() and the
+    // first screenshot below and throw off every subsequent mouse coordinate.
+    // Scrolling once, up front, keeps the box and the mouse math in sync.
+    await canvas.scrollIntoViewIfNeeded();
+
+    // Map charge 1's world position (0, 2) to screen px using the same
+    // square-aspect mapping electric-field-array.ts uses internally:
+    // scale = min(w,h) / 14, origin at canvas center, y flipped.
+    const box = (await canvas.boundingBox())!;
+    const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+    const scale = Math.min(dims.w, dims.h) / 14;
+    const chargeX = box.x + dims.w / 2;
+    const chargeY = box.y + dims.h / 2 - 2 * scale;
+
+    const before = await canvas.screenshot();
+    await page.mouse.move(chargeX, chargeY);
+    await page.mouse.down();
+    await page.mouse.move(chargeX + 60, chargeY, { steps: 5 });
+    await page.mouse.up();
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
+  });
+});

@@ -37,7 +37,7 @@ const slugify = (name) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-const CANVAS2D = new Set(['pi-collisions', '2d-motion', 'rope-oscillations-sim', 'gravitation-2point', 'yoyo-lab3']);
+const CANVAS2D = new Set(['pi-collisions', '2d-motion', 'rope-oscillations-sim', 'gravitation-2point', 'yoyo-lab3', 'electric-field-array']);
 const PUBLISH = new Set([
   ...CANVAS2D,
   'electric-field-array', 'electric-potential-array', 'field-v-potential-array',

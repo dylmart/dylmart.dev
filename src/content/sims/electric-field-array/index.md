@@ -2,7 +2,7 @@
 title: "Electric Field of Two Point Charges"
 summary: "Physics simulation from Physics163."
 publish: true
-render: glowscript
+render: canvas2d
 glowscript_version: "3.2"
 original_name: "ElectricFieldArray"
 folder_origin: "Physics163"
