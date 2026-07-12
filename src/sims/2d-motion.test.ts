@@ -48,4 +48,25 @@ describe('2d.motion physics', () => {
     // (aimFromDrag is the exported pure helper; scale = pxPerUnit, y flipped)
     expect(aimFromDrag({ dx: 40, dy: -80 }, 10)).toEqual({ v0x: 4, v0y: 8 });
   });
+  it('non-default params change the trajectory (params are actually wired)', () => {
+    const simA = createSim({});
+    const simB = createSim({ v0y: 8 });
+    for (let i = 0; i < 200; i++) {
+      simA.advance(simA.dt);
+      simB.advance(simB.dt);
+    }
+    const stateA = stateOf(simA);
+    const stateB = stateOf(simB);
+
+    // (a) simB's y position should be greater than simA's (greater initial velocity)
+    expect(stateB.pos.y).toBeGreaterThan(stateA.pos.y);
+
+    // (b) simB's position matches closed form with v0y=8 to 9 decimal places
+    const n = 200;
+    const dt = 0.01;
+    expect(stateB.pos.y).toBeCloseTo(closedFormPos(0, 8, 4, n, dt), 9);
+
+    // x positions are identical (same v0x and ax across both)
+    expect(stateB.pos.x).toBeCloseTo(stateA.pos.x, 9);
+  });
 });
