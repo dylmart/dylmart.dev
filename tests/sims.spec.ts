@@ -408,4 +408,48 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     const after = await canvas.screenshot();
     expect(after.equals(before)).toBe(false);
   });
+
+  test('drag survives a viewport resize (pointer coords stay in mount-time space)', async ({ page }) => {
+    // The canvas is CSS width:100%, so a resize/rotation changes its
+    // clientWidth/Height, but host.ts captures `view.w/h` once at mount.
+    // Pointer events' offsetX/Y arrive in the NEW CSS-px space, so the host
+    // must rescale them into the mount-time view before sims hit-test
+    // against it, or drags misalign after any resize.
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto('/projects/sims/electric-field-array/');
+    const canvas = page.locator('.sim2d .sim-main');
+    await expect(canvas).toBeVisible();
+
+    const toggle = page.locator('[data-act="toggle"]');
+    await toggle.click();
+    await expect(toggle).toHaveText(/play/i);
+
+    await canvas.scrollIntoViewIfNeeded();
+    const mountDims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+    const mountScale = Math.min(mountDims.w, mountDims.h) / 14;
+    // world (3, -2): the positive charge, INITIAL_CHARGES[1] in electric-field-array.ts.
+    const pxMount = mountDims.w / 2 + 3 * mountScale;
+    const pyMount = mountDims.h / 2 + 2 * mountScale;
+
+    // Resize to a meaningfully different viewport; the mounted sim's `view`
+    // (captured once at mount) does not follow.
+    await page.setViewportSize({ width: 700, height: 900 });
+    await canvas.scrollIntoViewIfNeeded();
+    const box = (await canvas.boundingBox())!;
+    const dims = await canvas.evaluate((el: HTMLCanvasElement) => ({ w: el.clientWidth, h: el.clientHeight }));
+
+    // Screen offset that lands on the charge in the CURRENT (post-resize)
+    // CSS-px space: scale the mount-space pixel by how much the canvas has
+    // grown/shrunk since mount, matching what host.ts is expected to invert.
+    const chargeX = box.x + pxMount * (dims.w / mountDims.w);
+    const chargeY = box.y + pyMount * (dims.h / mountDims.h);
+
+    const before = await canvas.screenshot();
+    await page.mouse.move(chargeX, chargeY);
+    await page.mouse.down();
+    await page.mouse.move(chargeX + 40, chargeY, { steps: 5 });
+    await page.mouse.up();
+    const after = await canvas.screenshot();
+    expect(after.equals(before)).toBe(false);
+  });
 });

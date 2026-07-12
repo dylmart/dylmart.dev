@@ -49,7 +49,13 @@ export function mountSim(
     let held = false;
     const handlePointer = (type: SimPointerEvent['type'], e: PointerEvent) => {
       held = pointerStateReducer(type, held);
-      const ev: SimPointerEvent = { type, x: e.offsetX, y: e.offsetY, held };
+      // canvas is CSS width:100%, so its clientWidth/Height can drift from
+      // the mount-time view (resize, rotation) while offsetX/Y arrive in the
+      // NEW CSS-px space; rescale into the view's coordinate space so hit
+      // tests against world-mapped positions stay aligned.
+      const scaleX = canvas.clientWidth ? view.w / canvas.clientWidth : 1;
+      const scaleY = canvas.clientHeight ? view.h / canvas.clientHeight : 1;
+      const ev: SimPointerEvent = { type, x: e.offsetX * scaleX, y: e.offsetY * scaleY, held };
       const redraw = sim.onPointer!(ev, view);
       if (redraw) sim.draw(ctx, view);
     };
