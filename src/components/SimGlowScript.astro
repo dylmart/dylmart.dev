@@ -7,6 +7,7 @@ const { slug, thumbSrc, title } = Astro.props;
   <button class="sim-run" type="button">▶ Run simulation</button>
   <p class="sim-fallback hud" hidden>// WEBGL UNAVAILABLE · SIMULATION CANNOT RUN IN THIS BROWSER</p>
 </div>
+<p class="sim-mobile-warn hud">// HEADS UP · THE 3D SIMS DON'T WORK ON MOBILE · OPEN THIS ONE ON A DESKTOP</p>
 
 <style>
   .sim-stage { position: relative; border: 1.5px solid var(--neutral); border-radius: 10px; overflow: hidden; background: var(--surface); }
@@ -19,6 +20,11 @@ const { slug, thumbSrc, title } = Astro.props;
   }
   .sim-run:hover { background: var(--accent-bright); }
   .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
+  /* touch devices only: the GlowScript camera wants a mouse */
+  .sim-mobile-warn { display: none; margin: 0.6rem 0 0; color: var(--accent); }
+  @media (pointer: coarse) {
+    .sim-mobile-warn { display: block; }
+  }
   :global(.sim-stage.sim-running) { display: flex; flex-wrap: wrap; align-items: stretch; }
   :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); flex: 1 1 640px; min-width: 0; }
   /* The runtime renders a fixed 640x400 canvas; scale it to fill the stage

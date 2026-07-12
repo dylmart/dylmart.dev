@@ -60,7 +60,7 @@ import { SITE } from '../site.config';
       </div>
     </div>
   </div>
-  <p class="hud">// SLO GROUND STATION · 35.28°N 120.66°W</p>
+  <p class="hud">// SLO GROUND STATION<span class="coords"><span class="sep"> · </span>35.28°N 120.66°W</span></p>
   <h1 class="display">Dylan <br />Martin<span>.</span></h1>
   <p class="tag">{SITE.tagline} This is the ship's log.</p>
   <a class="cta" href="/projects">See the projects</a>
@@ -137,6 +137,9 @@ import { SITE } from '../site.config';
   @media (max-width: 560px) {
     .hero { padding: 6rem 1.25rem 3.5rem; }
     .art { opacity: 0.85; }
+    /* coordinates get their own line so they stay off the planet */
+    .hud .coords { display: block; }
+    .hud .coords .sep { display: none; }
   }
   h1 { font-size: clamp(3rem, 9vw, 5.2rem); margin: 0.9rem 0 0; position: relative; z-index: 2; }
   h1 span { color: var(--accent); }

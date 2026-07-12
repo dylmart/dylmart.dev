@@ -85,6 +85,21 @@ test.describe('sims section', () => {
     await expect(page.locator('details.sim-source')).toContainText('Web VPython 3.2');
   });
 
+  test('mobile disclaimer shows on touch devices only for 3D sims', async ({ page, browser }) => {
+    // desktop (fine pointer): hidden
+    await page.goto('/projects/sims/many-particles-in-bottle/');
+    await expect(page.locator('.sim-mobile-warn')).toBeHidden();
+    // coarse pointer (phone): visible
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true,
+    });
+    const phone = await ctx.newPage();
+    await phone.goto('/projects/sims/many-particles-in-bottle/');
+    await expect(phone.locator('.sim-mobile-warn')).toBeVisible();
+    await expect(phone.locator('.sim-mobile-warn')).toContainText("DON'T WORK ON MOBILE");
+    await ctx.close();
+  });
+
   test('projects page links to sims', async ({ page }) => {
     await page.goto('/projects/');
     await page.getByRole('link', { name: /physics simulations/i }).click();
