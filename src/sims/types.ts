@@ -23,5 +23,7 @@ export interface Sim2D {
   readonly plotLabel?: string;
   /** render the plot with equal x/y pixel scale (circles stay circular) */
   readonly plotEqualAspect?: boolean;
+  /** static sims can hide the meaningless speed control */
+  readonly hideSpeedControl?: boolean;
 }
 export type SimFactory = (params: Record<string, number>) => Sim2D;

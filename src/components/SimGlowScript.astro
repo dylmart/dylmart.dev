@@ -20,7 +20,10 @@ const { slug, thumbSrc, title } = Astro.props;
   .sim-run:hover { background: var(--accent-bright); }
   .sim-fallback { position: absolute; bottom: 0.6rem; left: 0.8rem; }
   :global(.sim-stage.sim-running) { display: flex; flex-wrap: wrap; align-items: stretch; }
-  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); flex: 0 1 auto; }
+  :global(.sim-stage .glowscript) { background: var(--sim-canvas-bg); flex: 1 1 640px; min-width: 0; }
+  /* The runtime renders a fixed 640x400 canvas; scale it to fill the stage
+     (CSS upscaling, aspect preserved — the WebGL buffer stays 640x400). */
+  :global(.sim-stage .glowscript canvas) { width: 100% !important; height: auto !important; display: block; }
   /* GlowScript's print() console, relocated from document.body into the stage
      (docked right of the canvas; wraps below it on narrow screens). */
   :global(.sim-print) {

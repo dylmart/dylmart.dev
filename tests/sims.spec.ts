@@ -24,9 +24,9 @@ test.describe('accessibility', () => {
 });
 
 test.describe('sims section', () => {
-  test('index lists exactly the 10 published sims', async ({ page }) => {
+  test('index lists exactly the 8 published sims', async ({ page }) => {
     await page.goto('/projects/sims/');
-    await expect(page.locator('.sim-card')).toHaveCount(10);
+    await expect(page.locator('.sim-card')).toHaveCount(8);
     await expect(page.locator('.sim-card', { hasText: 'Counting π with Colliding Blocks' })).toBeVisible();
   });
 
@@ -105,7 +105,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(10); // index actually loaded
+    await expect(page.locator('.sim-card')).toHaveCount(8); // index actually loaded
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBeUndefined();
   });
 
@@ -118,7 +118,7 @@ test.describe('sims section', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(10);
+    await expect(page.locator('.sim-card')).toHaveCount(8);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -323,7 +323,7 @@ test.describe('yoyo-lab3 (ported to Canvas2D)', () => {
 
     await page.getByRole('link', { name: /all simulations/i }).click();
     await expect(page).toHaveURL(/\/projects\/sims\/?$/);
-    await expect(page.locator('.sim-card')).toHaveCount(10);
+    await expect(page.locator('.sim-card')).toHaveCount(8);
     expect(await page.evaluate(() => (window as any).__softNavMarker)).toBe(1);
   });
 });
@@ -340,7 +340,7 @@ test.describe('electric-field-array (ported to Canvas2D, draggable charges)', ()
     await expect(page.locator('.sim-controls')).toBeVisible();
     await expect(page.locator('[data-act="toggle"]')).toBeVisible();
     await expect(page.locator('[data-act="reset"]')).toBeVisible();
-    await expect(page.locator('[data-act="speed"]')).toBeVisible();
+    await expect(page.locator('[data-act="speed"]')).toHaveCount(0); // static sim opts out of speed
     await expect(page.locator('.sim2d .sim-plot')).toHaveCount(0); // static field has no plot
     expect(errors).toEqual([]);
   });

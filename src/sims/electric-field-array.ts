@@ -93,6 +93,7 @@ const factory = (_p: Record<string, number>): Sim2D => {
 
   const sim: Sim2D = {
     dt: 0.01, // static field: advance() is a no-op, dt is nominal only
+    hideSpeedControl: true, // speed is meaningless for a static field (Dylan)
 
     advance(_dt: number) {
       // no-op: the field is static, nothing to integrate
