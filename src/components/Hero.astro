@@ -2,6 +2,11 @@
 import { SITE } from '../site.config';
 ---
 <section class="hero grain">
+  <div class="starfield" aria-hidden="true">
+    {[[8, 20, 0], [18, 60, 1], [30, 15, 2], [44, 70, 0.5], [55, 30, 1.4], [64, 78, 2.6], [78, 64, 0.8], [90, 12, 1.9], [12, 82, 2.2], [38, 42, 0.3], [70, 22, 1.7], [96, 48, 1.1]].map(
+      ([x, y, d]) => <i style={`left:${x}%; top:${y}%; animation-delay:${d}s`} />
+    )}
+  </div>
   {/* Dylan's cusp signs: Taurus on the left, Gemini on the right. Stick
       figures follow the real asterisms; Aldebaran and Pollux get the accent
       tint because both really are orange giants. */}
@@ -66,11 +71,16 @@ import { SITE } from '../site.config';
   .constellation {
     position: absolute; pointer-events: none; opacity: 0.5;
   }
+  .starfield i {
+    position: absolute; width: 2px; height: 2px; border-radius: 50%;
+    background: var(--text); opacity: 0.5;
+    animation: twinkle 4s ease-in-out infinite;
+  }
   .constellation.taurus { left: 42%; top: 8%; width: clamp(160px, 24vw, 280px); }
   .constellation.gemini { right: 25%; bottom: 4%; width: clamp(120px, 18vw, 200px); }
   @media (max-width: 560px) {
-    /* no clear sky for the bull on phones; the twins carry the detail */
-    .constellation.taurus { display: none; }
+    /* give the bull a strip of sky above the headline on phones */
+    .constellation.taurus { left: 4%; top: 1.5%; width: 108px; }
   }
   .constellation .lines polyline {
     fill: none; stroke: var(--neutral); stroke-width: 1; vector-effect: non-scaling-stroke;
@@ -125,7 +135,7 @@ import { SITE } from '../site.config';
     to { transform: rotate(-360deg) scaleY(3.846); }
   }
   @media (max-width: 560px) {
-    .hero { padding: 2.75rem 1.25rem 3.5rem; }
+    .hero { padding: 6rem 1.25rem 3.5rem; }
     .art { opacity: 0.85; }
   }
   h1 { font-size: clamp(3rem, 9vw, 5.2rem); margin: 0.9rem 0 0; position: relative; z-index: 2; }
