@@ -142,8 +142,10 @@ const factory = (p: Record<string, number>): Sim2D => {
       ctx.clearRect(0, 0, view.w, view.h);
 
       const floorY = view.h - 46;
+      // Physics: block1 wall-bounces when its center hits x = 0.5, i.e. its left
+      // face (half-width 0.5) touches x = 0 — so the wall's right face sits at 0.
       const wallLeftPx = worldToPx(-1.2, WORLD_MIN, WORLD_MAX, view.w);
-      const wallRightPx = worldToPx(0.15, WORLD_MIN, WORLD_MAX, view.w);
+      const wallRightPx = worldToPx(0, WORLD_MIN, WORLD_MAX, view.w);
       const wallTopY = Math.max(0, floorY - 130);
 
       ctx.strokeStyle = view.css('--neutral');
@@ -156,7 +158,11 @@ const factory = (p: Record<string, number>): Sim2D => {
       ctx.fillStyle = view.css('--neutral');
       ctx.fillRect(wallLeftPx, wallTopY, Math.max(2, wallRightPx - wallLeftPx), floorY - wallTopY);
 
-      const blockSize = 26;
+      // Both blocks are 1 world unit wide (CONTACT_DIST = 1 between centers), so
+      // draw them at exactly 1 unit in pixels — their faces then touch precisely
+      // when the physics registers a collision, instead of colliding across a
+      // visible gap (a fixed 26px size didn't match the 32px world unit).
+      const blockSize = view.w / (WORLD_MAX - WORLD_MIN);
       const block1Px = worldToPx(state.x1, WORLD_MIN, WORLD_MAX, view.w);
       const block2Px = worldToPx(state.x2, WORLD_MIN, WORLD_MAX, view.w);
 
